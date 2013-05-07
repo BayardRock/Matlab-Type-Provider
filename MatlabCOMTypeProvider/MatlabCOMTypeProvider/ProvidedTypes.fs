@@ -1159,7 +1159,27 @@ type ProvidedTypeDefinition(container:TypeContainer,className : string, baseType
     override this.MakePointerType() = ProvidedSymbolType(SymbolKind.Pointer, [this]) :> Type
     override this.MakeByRefType() = ProvidedSymbolType(SymbolKind.ByRef, [this]) :> Type
 
-    override this.GetMembers _bindingAttr = getMembers() 
+    // The binding attributes are always set to DeclaredOnly ||| Static ||| Instance ||| Public when GetMembers is called directly by the F# compiler
+    // However, it's possible for the framework to generate other sets of flags in some corner cases (e.g. via use of `enum` with a provided type as the target)
+    override this.GetMembers bindingAttr = 
+        let mems = 
+            getMembers() 
+            |> Array.filter (fun mem -> 
+                                let isStatic = 
+                                    match mem with
+                                    | :? FieldInfo as f -> f.IsStatic
+                                    | :? MethodInfo as m -> m.IsStatic
+                                    | :? ConstructorInfo as c -> c.IsStatic
+                                    | :? PropertyInfo as p -> if p.CanRead then p.GetGetMethod().IsStatic else p.GetSetMethod().IsStatic
+                                    | :? EventInfo as e -> e.GetAddMethod().IsStatic
+                                    | :? Type -> true
+                                    | _ -> failwith (sprintf "Member %O is of unexpected type" mem)
+                                bindingAttr.HasFlag(if isStatic then BindingFlags.Static else BindingFlags.Instance))
+
+        if bindingAttr.HasFlag(BindingFlags.DeclaredOnly) || this.BaseType = null then mems
+        else 
+            let baseMems = this.BaseType.GetMembers bindingAttr
+            Array.append mems baseMems
 
     override this.GetNestedTypes bindingAttr = 
         this.GetMembers bindingAttr 
@@ -1378,7 +1398,7 @@ type AssemblyGenerator(assemblyFileName) =
                     ctorMap.[pcinfo] <- cb
                 | _ -> () 
                     
-            for finfo in ptd.GetFields(BindingFlags.Public ||| BindingFlags.NonPublic) do
+            for finfo in ptd.GetFields(BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Static ||| BindingFlags.Instance) do
                 match finfo with 
                 | :? ProvidedField as pfinfo when not (fieldMap.ContainsKey pfinfo)  -> 
                     let fb = tb.DefineField(finfo.Name, convType finfo.FieldType, finfo.Attributes)
@@ -1387,7 +1407,7 @@ type AssemblyGenerator(assemblyFileName) =
                     fieldMap.[pfinfo] <- fb
                 | _ -> () 
 
-            for minfo in ptd.GetMethods(BindingFlags.Public ||| BindingFlags.NonPublic) do
+            for minfo in ptd.GetMethods(BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Static ||| BindingFlags.Instance) do
                 match minfo with 
                 | :? ProvidedMethod as pminfo when not (methMap.ContainsKey pminfo)  -> 
                     let mb = tb.DefineMethod(minfo.Name, minfo.Attributes, convType minfo.ReturnType, [| for p in minfo.GetParameters() -> convType p.ParameterType |])
@@ -1752,7 +1772,7 @@ type AssemblyGenerator(assemblyFileName) =
                 ilg.Emit(OpCodes.Ret)
                     
             // Emit the methods
-            for minfo in ptd.GetMethods(BindingFlags.Public ||| BindingFlags.NonPublic) do
+            for minfo in ptd.GetMethods(BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Static ||| BindingFlags.Instance) do
               match minfo with 
               | :? ProvidedMethod as pminfo   -> 
                 let mb = methMap.[pminfo]
@@ -1783,7 +1803,7 @@ type AssemblyGenerator(assemblyFileName) =
                 let bodyMethBuilder = methMap.[bodyMethInfo]
                 tb.DefineMethodOverride(bodyMethBuilder,declMethInfo)
 
-            for pinfo in ptd.GetProperties(BindingFlags.Public ||| BindingFlags.NonPublic) do
+            for pinfo in ptd.GetProperties(BindingFlags.Public ||| BindingFlags.NonPublic ||| BindingFlags.Static ||| BindingFlags.Instance) do
                 let pb = tb.DefineProperty(pinfo.Name, pinfo.Attributes, convType pinfo.PropertyType, [| for p in pinfo.GetIndexParameters() -> convType p.ParameterType |])
                 let cattr = match pinfo with :? ProvidedProperty as ppinfo -> ppinfo.GetCustomAttributesDataImpl() | _ -> [| |] :> IList<_>
                 defineCustomAttrs pb.SetCustomAttribute cattr

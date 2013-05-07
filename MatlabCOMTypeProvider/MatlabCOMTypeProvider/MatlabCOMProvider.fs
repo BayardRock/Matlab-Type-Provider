@@ -23,14 +23,14 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"MatlabVars", Some(typeof<obj>))
     do pty.AddMembersDelayed(fun () ->
       
-            let executor = lazy MatlabCommandExecutor (proxy.Force())
+            let executor = MatlabCommandExecutor (proxy.Force())
             [
-                for var in executor.Force().GetVariables() do
+                for var in executor.GetVariableInfos() do
                     let p = ProvidedProperty(
                                 propertyName = var.Name, 
-                                propertyType = typeof<string>, 
+                                propertyType = executor.GetVariableType(var), 
                                 IsStatic = true,
-                                GetterCode = fun _ -> let name = var.Name in <@@ name @@>)
+                                GetterCode = let name = var.Name in fun _ -> <@@ executor.GetVariableContents name @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
             ]

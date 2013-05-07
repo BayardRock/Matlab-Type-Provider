@@ -2,32 +2,7 @@
 
 open System
 open System.Reflection
-
-type MatlabVariable = {
-        Name: string
-        Size: int list
-        Bytes: uint64
-        Class: string
-        Attributes: string list
-    }
-
-module MatlabHelpers = 
-    let parseWhos (whosstr: string) =
-        let crlfchars = [|'\r'; '\n'|]
-        let byline = whosstr.Split(crlfchars, StringSplitOptions.RemoveEmptyEntries) 
-        let header = byline.[0].Split([|' '|], StringSplitOptions.RemoveEmptyEntries)
-        assert(header.[0] = "Name" && header.[1] = "Size" && header.[2] = "Bytes" && header.[3] = "Class" && header.[4] = "Attributes")
-        [|
-            for i = 1 to byline.Length - 1 do
-                let bytoken = byline.[i].Split([|' '|], StringSplitOptions.RemoveEmptyEntries) 
-                yield {
-                    Name = bytoken.[0]
-                    Size = bytoken.[1].Split([|'x'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun n -> int n) |> Array.toList
-                    Bytes = bytoken.[2] |> uint64
-                    Class = bytoken.[3]
-                    Attributes = if bytoken.Length >= 5 then bytoken.[4 ..] |> Array.toList else []
-                }
-        |]
+open System.Numerics
 
 type MatlabCOMProxy (progid: string) =
     do if progid = "" then failwith "Empty progid unexpected"
@@ -57,8 +32,11 @@ type MatlabCOMProxy (progid: string) =
     //
     member t.GetVariable (var: string) = mtyp.InvokeMember("GetVariable", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) 
     
-    //Needs to know the size beforehand
-    //member t.GetFullMatrix (var: string) = mtyp.InvokeMember("GetFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag|] ) 
+//    member t.GetFullMatrix<'T> (var: string) (xsize: int) (ysize: int) = 
+//        let xreal : double [,] ref = Array2D.zeroCreate xsize ysize |> ref
+//        let ximag : double [,] ref = Array2D.zeroCreate xsize ysize |> ref
+//        do mtyp.InvokeMember("GetFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag |] ) |> ignore
+//        xreal, ximag  
     
     ///
     /// Use GetWorkspaceData instead of GetFullMatrix and GetCharArray to get numeric and character array data, respectively. Do not use GetWorkspaceData on sparse arrays, structures, or function handles.
@@ -73,6 +51,65 @@ type MatlabCOMProxy (progid: string) =
     // Use PutWorkspaceData to pass numeric and character array data respectively to the server. Do not use PutWorkspaceData on sparse arrays, structures, or function handles. Use the Execute method for these data types.
     //
     member t.PutWorkspaceData (var: string) (data: obj) = mtyp.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; data|] ) 
-        
+
+type MatlabVariable = {
+        Name: string
+        Size: int list
+        Bytes: uint64
+        Class: string
+        Attributes: string list
+    }
+
+module MatlabHelpers = 
+    let parseWhos (whosstr: string) =
+        let crlfchars = [|'\r'; '\n'|]
+        let byline = whosstr.Split(crlfchars, StringSplitOptions.RemoveEmptyEntries) 
+        let header = byline.[0].Split([|' '|], StringSplitOptions.RemoveEmptyEntries)
+        assert(header.[0] = "Name" && header.[1] = "Size" && header.[2] = "Bytes" && header.[3] = "Class" && header.[4] = "Attributes")
+        [|
+            for i = 1 to byline.Length - 1 do
+                let bytoken = byline.[i].Split([|' '|], StringSplitOptions.RemoveEmptyEntries) 
+                yield {
+                    Name = bytoken.[0]
+                    Size = bytoken.[1].Split([|'x'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun n -> int n) |> Array.toList
+                    Bytes = bytoken.[2] |> uint64
+                    Class = bytoken.[3]
+                    Attributes = if bytoken.Length >= 5 then bytoken.[4 ..] |> Array.toList else []
+                }
+        |]
+
+    let (|MComplex|_|) =
+        function 
+        | { Attributes = ["complex"] } -> Some ()
+        | _ -> None
+
+    let (|MString|MDouble|MVector|MMatrix|MUnexpected|) =
+        function
+        | { Size = [1; _]; Class = "char"   } -> MString
+        | { Size = [1; 1]; Class = "double" } -> MDouble
+        | { Size = [1; _]; Class = "double" } -> MVector
+        | { Size = [_; _]; Class = "double" } -> MMatrix
+        | _ -> MUnexpected
+
+open MatlabHelpers
+
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
-    member t.GetVariables() = proxy.Execute [|"whos"|] :?> string |> MatlabHelpers.parseWhos
+    member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
+    member t.GetVariableType (v: MatlabVariable) = 
+        match v with
+        | MString -> typeof<string>
+        | MDouble & MComplex -> typeof<Complex>
+        | MDouble -> typeof<double>
+        | MVector & MComplex -> typeof<Complex []>
+        | MVector -> typeof<double []>        
+        | MMatrix & MComplex -> typeof<Complex [,]>
+        | MMatrix -> typeof<double [,]>
+        | MUnexpected -> failwith (sprintf "Could not figure out type for Unexpected/Unsupported Variable Type: %A" v)
+    member t.GetVariableContents (name: string) = proxy.GetVariable(name)
+//        match vt with
+//        | MComplex -> failwith "Accessing complex types is not yet supported"
+//        | MString -> proxy.GetCharArray(name) :> obj
+//        | MDouble
+//        | MVector 
+//        | MMatrix -> proxy.GetVariable(name)
+//        | MUnexpected -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" vt)
