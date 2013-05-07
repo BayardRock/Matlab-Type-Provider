@@ -1,10 +1,7 @@
-﻿namespace MatlabCOMTypeProvider
+﻿module MatlabCOMInterface
 
 open System
 open System.Reflection
-open Samples.FSharp.ProvidedTypes
-open Microsoft.FSharp.Core.CompilerServices
-open Microsoft.FSharp.Quotations
 
 type MatlabVariable = {
         Name: string
@@ -79,44 +76,3 @@ type MatlabCOMProxy (progid: string) =
         
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetVariables() = proxy.Execute [|"whos"|] :?> string |> MatlabHelpers.parseWhos
-
-[<TypeProvider>]
-type MatlabCOMProvider (config: TypeProviderConfig) as this = 
-    inherit TypeProviderForNamespaces()
-    let rootNamespace = "Matlab.COMTypeProvider"
-    let thisAssembly  = Assembly.GetExecutingAssembly()
-    let baseTy = typeof<obj>
-    let matlabTy = ProvidedTypeDefinition(thisAssembly, rootNamespace, "MatlabType", Some baseTy)
-
-    let staticParams = [ProvidedStaticParameter("instance", typeof<string>)]
-    let mlKind = ref ""
-    do matlabTy.DefineStaticParameters(
-        staticParameters = staticParams, 
-        apply = fun typeName paramValues ->
-            match paramValues with
-            | [| :? string as matlabKind |] -> mlKind := matlabKind
-            matlabTy
-        )
-
-    let proxy = lazy (MatlabCOMProxy(!mlKind))
-    let executor = lazy (MatlabCommandExecutor(proxy.Force()))
-
-    let ty = ProvidedTypeDefinition(thisAssembly, rootNamespace, "MatlabContext", Some(baseTy))
-    let ctor = ProvidedConstructor(parameters = [], InvokeCode = fun args -> <@@ "Data" :> obj @@>)
-    do ty.AddMember(ctor)
-
-    let tyData = ProvidedTypeDefinition(thisAssembly, rootNamespace, "MatlabDataContext", Some(baseTy))
-    do tyData.AddMembersDelayed( fun () ->
-            let vars = executor.Force().GetVariables()
-            [ 
-                for var in vars do
-                    let p = ProvidedProperty(propertyName = var.Name, propertyType = typeof<string>, IsStatic = false, GetterCode = fun _ -> <@@ var.Name @@>)
-                    p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
-                    yield p
-            ]
-        )
-    do ty.AddMemberDelayed(fun () -> tyData)
-    do this.AddNamespace(rootNamespace, [matlabTy])
-
-[<assembly:TypeProviderAssembly>] 
-do()
