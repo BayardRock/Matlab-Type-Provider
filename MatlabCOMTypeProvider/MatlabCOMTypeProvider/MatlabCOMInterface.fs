@@ -1,4 +1,4 @@
-﻿module MatlabCOMInterface
+﻿module FSMatlab.COMInterface
 
 open System
 open System.Reflection

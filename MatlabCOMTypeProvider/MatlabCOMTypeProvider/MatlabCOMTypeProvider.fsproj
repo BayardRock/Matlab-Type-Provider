@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ProvidedTypes.fs" />
+    <Compile Include="MatlabCOMInterface.fs" />
     <Compile Include="MatlabCOMProvider.fs" />
     <None Include="Test.fsx" />
   </ItemGroup>
