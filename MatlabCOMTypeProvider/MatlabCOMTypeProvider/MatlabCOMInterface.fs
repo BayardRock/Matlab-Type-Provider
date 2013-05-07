@@ -99,17 +99,17 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         match v with
         | MString -> typeof<string>
         | MDouble & MComplex -> typeof<Complex>
-        | MDouble -> typeof<double>
+        | MDouble            -> typeof<double>
         | MVector & MComplex -> typeof<Complex []>
-        | MVector -> typeof<double []>        
+        | MVector            -> typeof<double []>        
         | MMatrix & MComplex -> typeof<Complex [,]>
-        | MMatrix -> typeof<double [,]>
+        | MMatrix            -> typeof<double [,]>
         | MUnexpected -> failwith (sprintf "Could not figure out type for Unexpected/Unsupported Variable Type: %A" v)
-    member t.GetVariableContents (name: string) = proxy.GetVariable(name)
-//        match vt with
-//        | MComplex -> failwith "Accessing complex types is not yet supported"
-//        | MString -> proxy.GetCharArray(name) :> obj
-//        | MDouble
-//        | MVector 
-//        | MMatrix -> proxy.GetVariable(name)
-//        | MUnexpected -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" vt)
+    member t.GetVariableContents (v: MatlabVariable) = 
+        match v with
+        //| MComplex -> failwith "Accessing complex types is not yet supported"
+        | MString -> proxy.GetCharArray(v.Name) :> obj
+        | MDouble
+        | MVector 
+        | MMatrix -> proxy.GetVariable(v.Name)
+        | MUnexpected -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" v)

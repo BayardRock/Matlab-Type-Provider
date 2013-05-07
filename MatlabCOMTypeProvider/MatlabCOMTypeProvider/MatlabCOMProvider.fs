@@ -5,7 +5,7 @@ open System.Reflection
 open System.Diagnostics
 open System.Threading
 open System.Collections.Generic
-open Samples.FSharp.ProvidedTypes
+open ProviderImplementation.ProvidedTypes
 open Microsoft.FSharp.Core.CompilerServices
 open Microsoft.FSharp.Quotations
 
@@ -18,24 +18,26 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     let thisAssembly  = Assembly.GetExecutingAssembly()
 
     let mlKind = "Matlab.Desktop.Application"
-    let proxy = lazy MatlabCOMProxy mlKind  
+    let proxy = MatlabCOMProxy mlKind  
 
-    let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"MatlabVars", Some(typeof<obj>))
-    do pty.AddMembersDelayed(fun () ->
-      
-            let executor = MatlabCommandExecutor (proxy.Force())
+    let contexty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"MLContext", Some(typeof<obj>))
+
+    let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"Vars", Some(typeof<obj>))
+    do pty.AddMembersDelayed(fun () ->     
+            let executor = MatlabCommandExecutor proxy
             [
                 for var in executor.GetVariableInfos() do
                     let p = ProvidedProperty(
                                 propertyName = var.Name, 
                                 propertyType = executor.GetVariableType(var), 
                                 IsStatic = true,
-                                GetterCode = let name = var.Name in fun _ -> <@@ executor.GetVariableContents name @@>)
+                                GetterCode = let contents = executor.GetVariableContents var in fun _ -> <@@ contents @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
             ]
         )
-    do this.AddNamespace(rootNamespace, [ pty ])
+
+    do this.AddNamespace(rootNamespace, [ contexty ])
 
 
 [<assembly:TypeProviderAssembly>] 
