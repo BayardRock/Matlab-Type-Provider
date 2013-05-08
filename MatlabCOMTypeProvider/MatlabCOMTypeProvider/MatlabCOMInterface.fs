@@ -60,7 +60,43 @@ type MatlabVariable = {
         Attributes: string list
     }
 
+open Microsoft.Win32
+
 module MatlabHelpers = 
+    let nullToOption =
+        function
+        | null -> None
+        | x -> Some x
+    let optionReplace (y: Option<_>) (x: Option<_>) = 
+        match x with
+        | Some x -> Some x
+        | None -> y 
+
+    let getProgIDsAndPaths () = 
+        use regClsid = Registry.ClassesRoot.OpenSubKey("CLSID") in
+            regClsid.GetSubKeyNames()
+            |> Array.map (fun clsid -> 
+                use key = regClsid.OpenSubKey(clsid) in 
+                    key.OpenSubKey("ProgID"), key.OpenSubKey("InprocServer32"), key.OpenSubKey("LocalServer32"))
+            |> Array.map (fun (progid, ipspath, lspath) -> progid, if ipspath = null then lspath else ipspath)
+            |> Array.filter (fun (progid, path) -> progid <> null && path <> null) 
+            |> Array.map (fun (progid, path) -> let res = progid.GetValue(""), path.GetValue("") in progid.Close(); path.Close(); res)
+            |> Array.filter (fun (pid, pth) -> pid <> null && pth <> null)
+            |> Array.map (fun (pid, pth) -> (string pid) + " -> " + (string pth))
+
+    let getProgIDs () = 
+        use regClsid = Registry.ClassesRoot.OpenSubKey("CLSID") in
+            regClsid.GetSubKeyNames()
+            |> Array.map (fun clsid -> use key = regClsid.OpenSubKey(clsid) in key.OpenSubKey("ProgID"))            
+            |> Array.filter ((<>) null)
+            |> Array.map (fun (progid) -> let spid = progid.GetValue("") in progid.Close(); spid)
+            |> Array.filter ((<>) null)
+            |> Array.map (string)
+
+    let getMatlabProgIDs () = 
+        getProgIDs () 
+        |> Array.filter (fun progid -> progid.Contains("Matlab"))
+        
     let parseWhos (whosstr: string) =
         let crlfchars = [|'\r'; '\n'|]
         let byline = whosstr.Split(crlfchars, StringSplitOptions.RemoveEmptyEntries) 

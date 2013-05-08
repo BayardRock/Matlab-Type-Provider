@@ -20,7 +20,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     let mlKind = "Matlab.Desktop.Application"
     let proxy = MatlabCOMProxy mlKind  
 
-    let contexty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"MLContext", Some(typeof<obj>))
+    //let contexty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"MLContext", Some(typeof<obj>))
 
     let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"Vars", Some(typeof<obj>))
     do pty.AddMembersDelayed(fun () ->     
@@ -37,7 +37,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
             ]
         )
 
-    do this.AddNamespace(rootNamespace, [ contexty ])
+    do this.AddNamespace(rootNamespace, [ pty ])
 
 
 [<assembly:TypeProviderAssembly>] 
