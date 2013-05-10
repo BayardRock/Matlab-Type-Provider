@@ -4,16 +4,25 @@ open System
 open System.Reflection
 open System.Numerics
 
-type MatlabCOMProxy (progid: string) =
+type MatlabCOMProxy (progid: string) as this =
     do if progid = "" then failwith "Empty progid unexpected"
 
     let mtyp = Type.GetTypeFromProgID( progid ) //"Matlab.Desktop.Application"
     let ml = Activator.CreateInstance(mtyp)
 
+    let removeAns (resultStr: string) =
+        // Answer string header: [|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010';|]
+        let ansStr = String([|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010'|])
+        if resultStr.StartsWith(ansStr) then resultStr.Remove(0, ansStr.Length) else resultStr
+
+    do this.Execute([|"disp('F# Proxy is Connected.')"|]) |> ignore
     //
     // The server returns output from the command in the string, result. The result string also contains any warning or error messages that might have been issued by MATLAB software as a result of the command.
     //
-    member t.Execute args = mtyp.InvokeMember("Execute", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, args)
+    member t.Execute (args: obj[]) = 
+        match mtyp.InvokeMember("Execute", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, args) with
+        | :? string as strres -> removeAns strres :> obj
+        | other -> other
 
     //
     // Feval('functionname',numout,arg1,arg2,...) 
@@ -32,17 +41,20 @@ type MatlabCOMProxy (progid: string) =
     //
     member t.GetVariable (var: string) = mtyp.InvokeMember("GetVariable", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) 
     
-//    member t.GetFullMatrix<'T> (var: string) (xsize: int) (ysize: int) = 
-//        let xreal : double [,] ref = Array2D.zeroCreate xsize ysize |> ref
-//        let ximag : double [,] ref = Array2D.zeroCreate xsize ysize |> ref
-//        do mtyp.InvokeMember("GetFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag |] ) |> ignore
-//        xreal, ximag  
+    member t.GetFullMatrix (var: string) = 
+        let mutable xreal : double [,] = null
+        let mutable ximag : double [] =  null
+        do mtyp.InvokeMember("GetFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag |] ) |> ignore
+        xreal, ximag  
     
     ///
     /// Use GetWorkspaceData instead of GetFullMatrix and GetCharArray to get numeric and character array data, respectively. Do not use GetWorkspaceData on sparse arrays, structures, or function handles.
     /// These functions use the variant data type instead of the safearray data type used by GetFullMatrix and PutFullMatrix.
     ///
-    member t.GetWorkspaceData (var: string) = mtyp.InvokeMember("GetWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) 
+    member t.GetWorkspaceData (var: string) = 
+        let mutable res : obj = null
+        do mtyp.InvokeMember("GetWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base", res|] ) |> ignore
+        res
 
     member t.PutCharArray (var:string) (value:string) =  mtyp.InvokeMember("PutCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; value|] ) 
     member t.PutFullMatrix (var: string) (xreal: double [,]) (ximag: double [,]) = mtyp.InvokeMember("PutFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag|] ) 
@@ -51,6 +63,21 @@ type MatlabCOMProxy (progid: string) =
     // Use PutWorkspaceData to pass numeric and character array data respectively to the server. Do not use PutWorkspaceData on sparse arrays, structures, or function handles. Use the Execute method for these data types.
     //
     member t.PutWorkspaceData (var: string) (data: obj) = mtyp.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; data|] ) 
+
+type MatlabTypes = 
+    | MString = 0
+    | MDouble = 1
+    | MVector = 2
+    | MMatrix = 3
+    | MUnexpected = 4
+
+type MatlabFunction = {
+    Name: string
+    InArgs: string list
+    OutArgs: string list
+    Access: string
+    Static: bool
+    }
 
 type MatlabVariable = {
         Name: string
@@ -114,38 +141,72 @@ module MatlabHelpers =
                 }
         |]
 
-    let (|MComplex|_|) =
-        function 
-        | { Attributes = ["complex"] } -> Some ()
-        | _ -> None
-
-    let (|MString|MDouble|MVector|MMatrix|MUnexpected|) =
+    let getMatlabType =
         function
-        | { Size = [1; _]; Class = "char"   } -> MString
-        | { Size = [1; 1]; Class = "double" } -> MDouble
-        | { Size = [1; _]; Class = "double" } -> MVector
-        | { Size = [_; _]; Class = "double" } -> MMatrix
-        | _ -> MUnexpected
+        | { Size = [1; _]; Class = "char"   } -> MatlabTypes.MString
+        | { Size = [1; 1]; Class = "double" } -> MatlabTypes.MDouble
+        | { Size = [1; _]; Class = "double" } -> MatlabTypes.MVector
+        | { Size = [_; _]; Class = "double" } -> MatlabTypes.MMatrix
+        | _ -> MatlabTypes.MUnexpected
+
+    let parsePackages (pkgs: string) =
+        pkgs.Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList |> List.map (fun pkg -> pkg.Trim())
+
+    let filterPackages (pkgs: string list) =
+        let badPkgs = [| "MS"; "Microsoft"; "System" |]
+        pkgs |> List.filter (fun p -> (badPkgs |> Array.forall (fun bp -> not <| p.StartsWith(bp))))
+
+    let tsvToFuncitonInfo (tsv: string) = 
+        [
+            for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
+                let fields = line.Split([|'\t'|], StringSplitOptions.None)
+                yield {
+                    Name = fields.[0]
+                    InArgs = fields.[1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                    OutArgs = fields.[2].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                    Access = fields.[3]
+                    Static = fields.[4] = "1"
+                }
+        ]
+
+    let removeHtmlTags (html: string) =
+        System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
+
+    let parseHelp (pkgName: string) (helpText: string) =
+        if helpText.StartsWith(Environment.NewLine + pkgName + "not found.") then "No Matlab documentation found."
+        else helpText |> removeHtmlTags
 
 open MatlabHelpers
 
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
+    member t.GetPackageHelp (pkgName: string) = proxy.Execute [|"help " + pkgName|] :?> string |> parseHelp pkgName
+    member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
+                                 :?> string |> parsePackages |> filterPackages
+    member t.GetPackageFunctions (pkgName: string) = proxy.Execute [|"mtp_GetPackageFunctions(" + pkgName + ")"|] :?> string |> tsvToFuncitonInfo
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
-    member t.GetVariableType (v: MatlabVariable) = 
-        match v with
-        | MString -> typeof<string>
-        | MDouble & MComplex -> typeof<Complex>
-        | MDouble            -> typeof<double>
-        | MVector & MComplex -> typeof<Complex []>
-        | MVector            -> typeof<double []>        
-        | MMatrix & MComplex -> typeof<Complex [,]>
-        | MMatrix            -> typeof<double [,]>
-        | MUnexpected -> failwith (sprintf "Could not figure out type for Unexpected/Unsupported Variable Type: %A" v)
-    member t.GetVariableContents (v: MatlabVariable) = 
-        match v with
+    member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
+    member t.GetVariableMatlabType (v: MatlabVariable) = getMatlabType v
+    member t.GetVariableDotNetType (v: MatlabVariable) = 
+        match getMatlabType v with
+        | MatlabTypes.MString -> typeof<string>
+        | MatlabTypes.MDouble            -> typeof<double>
+        | MatlabTypes.MVector            -> typeof<double [,]>        
+        | MatlabTypes.MMatrix            -> typeof<double [,]>       
+        | MatlabTypes.MUnexpected -> failwith (sprintf "Could not figure out type for Unexpected/Unsupported Variable Type: %A" v)
+        | _ -> failwith "Unexpected MatlabTypes enumeration value"
+
+    member t.GetVariableContents (vname: string) (vtype: MatlabTypes) = 
+        match vtype with
         //| MComplex -> failwith "Accessing complex types is not yet supported"
-        | MString -> proxy.GetCharArray(v.Name) :> obj
-        | MDouble
-        | MVector 
-        | MMatrix -> proxy.GetVariable(v.Name)
-        | MUnexpected -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" v)
+        | MatlabTypes.MString     -> proxy.GetCharArray(vname) :> obj
+        | MatlabTypes.MDouble     -> proxy.GetVariable(vname) 
+        | MatlabTypes.MVector     -> proxy.GetVariable(vname) 
+        | MatlabTypes.MMatrix     -> 
+            match t.GetVariableInfo(vname) with
+            | Some { Size = [sx;sy] } -> 
+                let mat = Array2D.zeroCreate<double> sx sy
+                let arr = proxy.GetVariable(vname) :?> Array
+                Array.Copy(arr, mat, arr.LongLength)
+                mat :> obj
+            | _ -> failwith (sprintf "Variable %s does not exist or is not a matrix" vname)
+        | _ -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" vtype)
