@@ -27,7 +27,8 @@ type MatlabCOMProxy (progid: string) as this =
     //
     // Feval('functionname',numout,arg1,arg2,...) 
     //
-    member t.Feval args = mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, args)
+    member t.Feval (name: string) (outparams: int) (args: obj []) = 
+        mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, Array.append [|string; outparams|] args)
     
     //
     // Read a char array from matlab as a string
@@ -157,17 +158,19 @@ module MatlabHelpers =
         pkgs |> List.filter (fun p -> (badPkgs |> Array.forall (fun bp -> not <| p.StartsWith(bp))))
 
     let tsvToFuncitonInfo (tsv: string) = 
-        [
-            for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
-                let fields = line.Split([|'\t'|], StringSplitOptions.None)
-                yield {
-                    Name = fields.[0]
-                    InArgs = fields.[1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
-                    OutArgs = fields.[2].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
-                    Access = fields.[3]
-                    Static = fields.[4] = "1"
-                }
-        ]
+        try
+            [
+                for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
+                    let fields = line.Split([|'\t'|], StringSplitOptions.None)
+                    yield {
+                        Name = fields.[0]
+                        InArgs = fields.[1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                        OutArgs = fields.[2].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                        Access = fields.[3]
+                        Static = fields.[4] = "1"
+                    }
+            ]
+        with _ -> [ { Name = "Error"; InArgs = []; OutArgs = []; Access = "public"; Static = true }]
 
     let removeHtmlTags (html: string) =
         System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
@@ -176,13 +179,52 @@ module MatlabHelpers =
         if helpText.StartsWith(Environment.NewLine + pkgName + "not found.") then "No Matlab documentation found."
         else helpText |> removeHtmlTags
 
+    
+    open Parsing
+    open System
+
+    let rec findDeclariation (window: StringWindow) =
+        [
+            match window.WindowAfterIndexOf("function") with
+            | Some window ->                
+                let eqIdx = window.IndexOf("=") 
+                let codomainPrms = window.Substring(eqIdx).Split([|'[';']';',';' '|], StringSplitOptions.RemoveEmptyEntries)
+
+                let eqWindow = window.Subwindow(uint32 eqIdx + 1u)
+                let varsStartIdx = eqWindow.IndexOf("(")
+                let funName = eqWindow.Substring(varsStartIdx)
+
+                let doWindow = eqWindow.Subwindow(uint32 varsStartIdx + 1u)
+                let domainEndIdx = eqWindow.IndexOf(")")
+                let domainPrms = doWindow.Substring(domainEndIdx).Split([|'(';')';',';' '|], StringSplitOptions.RemoveEmptyEntries)
+                
+                yield funName, domainPrms, codomainPrms
+                yield! findDeclariation doWindow                                            
+            | None -> ()
+        ]
+            
+module MatlabStrings =
+    let getPackageFunctions (pkgName: string) =
+     """strjoin( transpose (...
+                arrayfun (@(x) strjoin( ...
+                                {x.Name, ...
+                                 strjoin(transpose(x.InputNames), ';'), ...
+                                 strjoin(transpose(x.OutputNames), ';'), ...
+                                 sprintf('%d', x.Static), ...
+                                 x.Access}, '\t'), ...
+                             meta.package.fromName('""" + pkgName + """').FunctionList, 'UniformOutput', false) ...                 
+                ), '\r')"""
+
+
 open MatlabHelpers
 
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetPackageHelp (pkgName: string) = proxy.Execute [|"help " + pkgName|] :?> string |> parseHelp pkgName
+    member t.GetFunctionHelp (pkgName: string) (funcName: string) = 
+        let helpName = pkgName + "." + funcName in proxy.Execute [|"help " + helpName|] :?> string |> parseHelp helpName
     member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
                                  :?> string |> parsePackages |> filterPackages
-    member t.GetPackageFunctions (pkgName: string) = proxy.Execute [|"mtp_GetPackageFunctions(" + pkgName + ")"|] :?> string |> tsvToFuncitonInfo
+    member t.GetPackageFunctions (pkgName: string) = proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToFuncitonInfo
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
     member t.GetVariableMatlabType (v: MatlabVariable) = getMatlabType v
@@ -194,6 +236,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         | MatlabTypes.MMatrix            -> typeof<double [,]>       
         | MatlabTypes.MUnexpected -> failwith (sprintf "Could not figure out type for Unexpected/Unsupported Variable Type: %A" v)
         | _ -> failwith "Unexpected MatlabTypes enumeration value"
+    member t.CallFunction (name: string) (args: obj []) = proxy.Feval name 1 args
 
     member t.GetVariableContents (vname: string) (vtype: MatlabTypes) = 
         match vtype with

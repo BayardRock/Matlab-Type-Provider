@@ -39,7 +39,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                     yield p                   
             ]
         )
-    do this.AddNamespace(rootNamespace, [ pty ])
+    do this.AddNamespace(rootNamespace,  [pty])
 
     let packages = executor.GetPackageNames()
     let pkgNs = rootNamespace + ".Packages"
@@ -49,15 +49,24 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
 
            pkgTyp.AddMembersDelayed(fun () -> 
                 [
-//                    let pkgFuncs = executor.GetPackageFunctions(package)
-//                    for pkgFunc in pkgFuncs do
-//                        ProvidedMethod methodName = memberName,
-//                                         parameters = paramList,
-//                                         returnType = typeof<SymbolicExpression>,
-//                                         IsStaticMethod = true,
+                    let pkgFuncs = executor.GetPackageFunctions(package)
+                    for pkgFunc in pkgFuncs do
+                        let funcParams = [ for p in pkgFunc.InArgs -> ProvidedParameter(pkgFunc.Name, typeof<obj>, optionalValue=null) ]
+                        let pm = ProvidedMethod(
+                                    methodName = pkgFunc.Name,
+                                    parameters = funcParams,
+                                    returnType = typeof<obj>,
+                                    IsStaticMethod = true,
+                                    InvokeCode = fun args -> 
+                                                    let name = pkgFunc.Name 
+                                                    let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
+                                                    <@@ MatlabInterface.executor.CallFunction name %%namedArgs @@>)
+                        pm.AddXmlDocDelayed(fun () -> executor.GetFunctionHelp package pkgFunc.Name)
+                        yield pm
                 ]
-           )
-           do this.AddNamespace(pkgNs, [pkgTyp])
+           )         
+           do this.AddNamespace(pkgNs,  [pkgTyp])
+
 
 
 [<assembly:TypeProviderAssembly>] 
