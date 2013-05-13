@@ -178,30 +178,6 @@ module MatlabHelpers =
     let parseHelp (pkgName: string) (helpText: string) =
         if helpText.StartsWith(Environment.NewLine + pkgName + "not found.") then "No Matlab documentation found."
         else helpText |> removeHtmlTags
-
-    
-    open Parsing
-    open System
-
-    let rec findDeclariation (window: StringWindow) =
-        [
-            match window.WindowAfterIndexOf("function") with
-            | Some window ->                
-                let eqIdx = window.IndexOf("=") 
-                let codomainPrms = window.Substring(eqIdx).Split([|'[';']';',';' '|], StringSplitOptions.RemoveEmptyEntries)
-
-                let eqWindow = window.Subwindow(uint32 eqIdx + 1u)
-                let varsStartIdx = eqWindow.IndexOf("(")
-                let funName = eqWindow.Substring(varsStartIdx)
-
-                let doWindow = eqWindow.Subwindow(uint32 varsStartIdx + 1u)
-                let domainEndIdx = eqWindow.IndexOf(")")
-                let domainPrms = doWindow.Substring(domainEndIdx).Split([|'(';')';',';' '|], StringSplitOptions.RemoveEmptyEntries)
-                
-                yield funName, domainPrms, codomainPrms
-                yield! findDeclariation doWindow                                            
-            | None -> ()
-        ]
             
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =

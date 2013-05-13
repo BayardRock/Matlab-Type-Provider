@@ -5,12 +5,12 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>23fc6dc2-eec7-4501-9546-1c285726e1ad</ProjectGuid>
+    <ProjectGuid>ffb16d64-493e-41a5-a82c-f7c9a0f6e7c5</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>MatlabCOMTypeProvider</RootNamespace>
-    <AssemblyName>MatlabCOMTypeProvider</AssemblyName>
+    <RootNamespace>Matlab.COMTypeProvider.Tests</RootNamespace>
+    <AssemblyName>Matlab.COMTypeProvider.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <Name>MatlabCOMTypeProvider</Name>
+    <Name>Matlab.COMTypeProvider.Tests</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -20,7 +20,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\MatlabCOMTypeProvider.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\Matlab.COMTypeProvider.Tests.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -29,7 +29,7 @@
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\MatlabCOMTypeProvider.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\Matlab.COMTypeProvider.Tests.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
@@ -39,15 +39,19 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+    <Reference Include="xunit">
+      <HintPath>..\libs\xunit 1.9.1\xunit.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ProvidedTypes.fs" />
-    <Compile Include="Parsing.fs" />
-    <Compile Include="MatlabFunctionParsing.fs" />
-    <Compile Include="MatlabCOMInterface.fs" />
-    <Compile Include="MatlabCOMProvider.fs" />
-    <None Include="Test.fsx" />
-    <None Include="ComTest.fsx" />
+    <Compile Include="ParserTests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MatlabCOMTypeProvider\MatlabCOMTypeProvider.fsproj">
+      <Name>MatlabCOMTypeProvider</Name>
+      <Project>{23fc6dc2-eec7-4501-9546-1c285726e1ad}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
