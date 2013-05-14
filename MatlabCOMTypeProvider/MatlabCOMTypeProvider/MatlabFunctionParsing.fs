@@ -30,12 +30,12 @@ let removeBothersomeMatlabComments tokens =
 let findFunc (window: StringWindow) =
     let funcStr = "function"
     // file starts with decl
-    if window.AtStart && window.StartsWith(funcStr) then Some(matlabTokenize <| window)
+    if window.AtStart && window.StartsWith(funcStr) then Some(window)
     // maybe another decl further down
     else 
         let ow = window.IndexOf("\n" + "function") in 
             if ow = -1 then None
-            else Some(matlabTokenize <| window.Subwindow(uint32 ow))
+            else Some(window.Subwindow(uint32 ow))
 
 /// Must start with a letter and then be a mix of letters, numebers or underscores
 let isValidMatlabVarName (token: string) = 
@@ -126,22 +126,22 @@ let parseFunDecl (window: StringWindow) =
 //        ] 
 
 /// Finds all matlab function declarations in the file and parses them
-let rec findDecl (window: StringWindow) =
-    [
-        match findFunc(window) with
-        | Some tokenStream ->                
-            let eqIdx = window.IndexOf("=") 
-            let codomainPrms = window.Substring(eqIdx).Split([|'[';']';',';' '|], StringSplitOptions.RemoveEmptyEntries)
-
-            let eqWindow = window.Subwindow(uint32 eqIdx + 1u)
-            let varsStartIdx = eqWindow.IndexOf("(")
-            let funName = eqWindow.Substring(varsStartIdx)
-
-            let doWindow = eqWindow.Subwindow(uint32 varsStartIdx + 1u)
-            let domainEndIdx = doWindow.IndexOf(")")
-            let domainPrms = doWindow.Substring(domainEndIdx).Split([|'(';')';',';' '|], StringSplitOptions.RemoveEmptyEntries)
-                
-            yield funName, domainPrms, codomainPrms
-            yield! findDecl doWindow                                            
-        | None -> ()
-    ]
+//let rec findDecl (window: StringWindow) =
+//    [
+//        match findFunc(window) with
+//        | Some tokenStream ->                
+//            let eqIdx = window.IndexOf("=") 
+//            let codomainPrms = window.Substring(eqIdx).Split([|'[';']';',';' '|], StringSplitOptions.RemoveEmptyEntries)
+//
+//            let eqWindow = window.Subwindow(uint32 eqIdx + 1u)
+//            let varsStartIdx = eqWindow.IndexOf("(")
+//            let funName = eqWindow.Substring(varsStartIdx)
+//
+//            let doWindow = eqWindow.Subwindow(uint32 varsStartIdx + 1u)
+//            let domainEndIdx = doWindow.IndexOf(")")
+//            let domainPrms = doWindow.Substring(domainEndIdx).Split([|'(';')';',';' '|], StringSplitOptions.RemoveEmptyEntries)
+//                
+//            yield funName, domainPrms, codomainPrms
+//            yield! findDecl doWindow                                            
+//        | None -> ()
+//    ]

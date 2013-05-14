@@ -1,69 +1,76 @@
 ﻿module FSMatlab.COMInterface
 
-open System
-open System.Reflection
-open System.Numerics
+module MatlabCOM =
+    open System
+    open System.Reflection
 
-type MatlabCOMProxy (progid: string) as this =
-    do if progid = "" then failwith "Empty progid unexpected"
+    type MatlabCOMProxy (progid: string) as this =
+        do if progid = "" then failwith "Empty progid unexpected"
 
-    let mtyp = Type.GetTypeFromProgID( progid ) //"Matlab.Desktop.Application"
-    let ml = Activator.CreateInstance(mtyp)
+        let mtyp = Type.GetTypeFromProgID( progid ) //"Matlab.Desktop.Application"
+        let ml = Activator.CreateInstance(mtyp)
 
-    let removeAns (resultStr: string) =
-        // Answer string header: [|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010';|]
-        let ansStr = String([|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010'|])
-        if resultStr.StartsWith(ansStr) then resultStr.Remove(0, ansStr.Length) else resultStr
+        let removeAns (resultStr: string) =
+            // Answer string header: [|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010';|]
+            let ansStr = String([|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010'|])
+            if resultStr.StartsWith(ansStr) then resultStr.Remove(0, ansStr.Length) else resultStr
 
-    do this.Execute([|"disp('F# Proxy is Connected.')"|]) |> ignore
-    //
-    // The server returns output from the command in the string, result. The result string also contains any warning or error messages that might have been issued by MATLAB software as a result of the command.
-    //
-    member t.Execute (args: obj[]) = 
-        match mtyp.InvokeMember("Execute", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, args) with
-        | :? string as strres -> removeAns strres :> obj
-        | other -> other
+        do this.Execute([|"disp('F# Proxy is Connected.')"|]) |> ignore
+        //
+        // The server returns output from the command in the string, result. The result string also contains any warning or error messages that might have been issued by MATLAB software as a result of the command.
+        //
+        member t.Execute (args: obj[]) = 
+            match mtyp.InvokeMember("Execute", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, args) with
+            | :? string as strres -> removeAns strres :> obj
+            | other -> other
 
-    //
-    // Feval('functionname',numout,arg1,arg2,...) 
-    //
-    member t.Feval (name: string) (outparams: int) (args: obj []) = 
-        mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, Array.append [|string; outparams|] args)
+        //
+        // Feval('functionname',numout,arg1,arg2,...) 
+        //
+        member t.Feval (name: string) (numoutparams: int) (args: obj []) : obj = 
+            let outParam: obj ref = ref null
+            let compositeArgs = Array.append [|box name; box numoutparams; box outParam|] args
+
+            // Make third param (output) pass by ref
+            let mutable pm = ParameterModifier(compositeArgs.Length)
+            do pm.[2] <- true
+            do mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|pm|]) |> ignore
+            !outParam
     
-    //
-    // Read a char array from matlab as a string
-    //
-    member t.GetCharArray (var: string) = mtyp.InvokeMember("GetCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) :?> string
+        //
+        // Read a char array from matlab as a string
+        //
+        member t.GetCharArray (var: string) = mtyp.InvokeMember("GetCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) :?> string
 
-    //
-    // Read a variable from matlab
-    // If your scripting language requires a result be returned explicitly, use the GetVariable function in place of GetWorkspaceData, GetFullMatrix or GetCharArray.
-    // Do not use GetVariable on sparse arrays, structures, or function handles.
-    //
-    member t.GetVariable (var: string) = mtyp.InvokeMember("GetVariable", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) 
+        //
+        // Read a variable from matlab
+        // If your scripting language requires a result be returned explicitly, use the GetVariable function in place of GetWorkspaceData, GetFullMatrix or GetCharArray.
+        // Do not use GetVariable on sparse arrays, structures, or function handles.
+        //
+        member t.GetVariable (var: string) = mtyp.InvokeMember("GetVariable", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) 
     
-    member t.GetFullMatrix (var: string) = 
-        let mutable xreal : double [,] = null
-        let mutable ximag : double [] =  null
-        do mtyp.InvokeMember("GetFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag |] ) |> ignore
-        xreal, ximag  
+        member t.GetFullMatrix (var: string) = 
+            let mutable xreal : double [,] = null
+            let mutable ximag : double [] =  null
+            do mtyp.InvokeMember("GetFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag |] ) |> ignore
+            xreal, ximag  
     
-    ///
-    /// Use GetWorkspaceData instead of GetFullMatrix and GetCharArray to get numeric and character array data, respectively. Do not use GetWorkspaceData on sparse arrays, structures, or function handles.
-    /// These functions use the variant data type instead of the safearray data type used by GetFullMatrix and PutFullMatrix.
-    ///
-    member t.GetWorkspaceData (var: string) = 
-        let mutable res : obj = null
-        do mtyp.InvokeMember("GetWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base", res|] ) |> ignore
-        res
+        ///
+        /// Use GetWorkspaceData instead of GetFullMatrix and GetCharArray to get numeric and character array data, respectively. Do not use GetWorkspaceData on sparse arrays, structures, or function handles.
+        /// These functions use the variant data type instead of the safearray data type used by GetFullMatrix and PutFullMatrix.
+        ///
+        member t.GetWorkspaceData (var: string) = 
+            let mutable res : obj = null
+            do mtyp.InvokeMember("GetWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base", res|] ) |> ignore
+            res
 
-    member t.PutCharArray (var:string) (value:string) =  mtyp.InvokeMember("PutCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; value|] ) 
-    member t.PutFullMatrix (var: string) (xreal: double [,]) (ximag: double [,]) = mtyp.InvokeMember("PutFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag|] ) 
+        member t.PutCharArray (var:string) (value:string) =  mtyp.InvokeMember("PutCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; value|] ) 
+        member t.PutFullMatrix (var: string) (xreal: double [,]) (ximag: double [,]) = mtyp.InvokeMember("PutFullMatrix", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; xreal; ximag|] ) 
     
-    //
-    // Use PutWorkspaceData to pass numeric and character array data respectively to the server. Do not use PutWorkspaceData on sparse arrays, structures, or function handles. Use the Execute method for these data types.
-    //
-    member t.PutWorkspaceData (var: string) (data: obj) = mtyp.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; data|] ) 
+        //
+        // Use PutWorkspaceData to pass numeric and character array data respectively to the server. Do not use PutWorkspaceData on sparse arrays, structures, or function handles. Use the Execute method for these data types.
+        //
+        member t.PutWorkspaceData (var: string) (data: obj) = mtyp.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; data|] ) 
 
 type MatlabTypes = 
     | MString = 0
@@ -72,12 +79,20 @@ type MatlabTypes =
     | MMatrix = 3
     | MUnexpected = 4
 
+type MatlabMethod = {
+        Name: string
+        InArgs: string list
+        OutArgs: string list
+        Access: string
+        Static: bool
+    }
+
+
 type MatlabFunction = {
-    Name: string
-    InArgs: string list
-    OutArgs: string list
-    Access: string
-    Static: bool
+        Name: string
+        InParams: string list
+        OutParams: string list
+        Path: string
     }
 
 type MatlabVariable = {
@@ -88,13 +103,72 @@ type MatlabVariable = {
         Attributes: string list
     }
 
-open Microsoft.Win32
+type MatlabToolbox = {
+        Name: string
+        Path: string
+        HelpName: string option
+        Funcs: MatlabFunction seq
+    }
 
-module MatlabHelpers = 
+module MatlabFunctionHelpers = 
+    open System
+    open System.IO
+    open Parsing 
+    open FSMatlab.FunctionParsing
+
+    let searchPathForFunctions (searchPath: string) =
+        seq {                                         
+            for file in Directory.EnumerateFiles(searchPath, "*.m") do
+                let fullPath = Path.Combine(searchPath, file)
+                let mlFunc = 
+                    try 
+                        // TODO: Log .m files with no found functions
+                        StringWindow(File.ReadAllText(fullPath), 0u) |> findFunc
+                        |> Option.map (fun funcWindow ->  let name, inparams, outparams = parseFunDecl funcWindow in { Name = name; InParams = inparams; OutParams = outparams; Path = fullPath })
+                    with ex -> None // TODO: Log Exceptions
+
+                match mlFunc with
+                | Some (f) -> yield f
+                | None -> ()
+        }        
+
+//    let searchPathsForFunctions (searchPaths: string seq) =
+//        seq {
+//            for searchPath in searchPaths do
+//                if Directory.Exists(searchPath) then
+//                    let funcs = searchPathForFunctions(searchPath)
+//                    yield searchPath, funcs
+//        }
+
+
+    let toolboxesFromPaths (matlabPath: string) (searchPaths: string seq) = 
+        seq {
+            let toolboxPath = Path.Combine(matlabPath, "toolbox")
+            let userIdx = ref 0
+            for searchPath in searchPaths do
+                let name, helpname = 
+                    if searchPath.StartsWith(toolboxPath) then // Actual Matlab Toolbox
+                        let helpname = searchPath.Remove(0, toolboxPath.Length + 1)
+                        let name = helpname.Replace(Path.PathSeparator, '_')
+                        name, Some helpname
+                    else // User Defined "Toolbox"
+                        // TODO: Find a better way to name user toolboxes
+                        do userIdx := !userIdx + 1
+                        "User" + (string !userIdx), None
+                yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = searchPathForFunctions searchPath |> Seq.cache }
+        }
+
+
+
+module MatlabCallHelpers = 
+    open System
+    open Microsoft.Win32
+
     let nullToOption =
         function
         | null -> None
         | x -> Some x
+
     let optionReplace (y: Option<_>) (x: Option<_>) = 
         match x with
         | Some x -> Some x
@@ -191,19 +265,28 @@ module MatlabStrings =
                              meta.package.fromName('""" + pkgName + """').FunctionList, 'UniformOutput', false) ...                 
                 ), '\r')"""
 
+open System
+open System.Reflection
+open System.Numerics
 
-open MatlabHelpers
+open MatlabCallHelpers
+open MatlabCOM
 
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
+    member t.GetFunctionSearchPaths () = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
+    member t.GetRoot () = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
+
     member t.GetPackageHelp (pkgName: string) = proxy.Execute [|"help " + pkgName|] :?> string |> parseHelp pkgName
     member t.GetFunctionHelp (pkgName: string) (funcName: string) = 
         let helpName = pkgName + "." + funcName in proxy.Execute [|"help " + helpName|] :?> string |> parseHelp helpName
     member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
                                  :?> string |> parsePackages |> filterPackages
     member t.GetPackageFunctions (pkgName: string) = proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToFuncitonInfo
+
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
     member t.GetVariableMatlabType (v: MatlabVariable) = getMatlabType v
+
     member t.GetVariableDotNetType (v: MatlabVariable) = 
         match getMatlabType v with
         | MatlabTypes.MString -> typeof<string>

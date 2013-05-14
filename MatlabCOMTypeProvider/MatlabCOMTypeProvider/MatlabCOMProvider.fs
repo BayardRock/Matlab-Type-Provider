@@ -12,7 +12,7 @@ open Microsoft.FSharp.Quotations
 open FSMatlab.COMInterface
 
 module MatlabInterface =    
-    let executor = MatlabCommandExecutor(new MatlabCOMProxy("Matlab.Desktop.Application"))
+    let executor = MatlabCommandExecutor(new MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
 
 
 [<TypeProvider>]
@@ -22,11 +22,14 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     let thisAssembly  = Assembly.GetExecutingAssembly()
 
     let mlKind = "Matlab.Desktop.Application"
-    let proxy = MatlabCOMProxy mlKind  
+    let proxy = MatlabCOM.MatlabCOMProxy mlKind  
     let executor = MatlabCommandExecutor proxy
-
+    
+    //
+    // Base Variables
+    //
     let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"Vars", Some(typeof<obj>))
-    do pty.AddMembersDelayed(fun () ->                 
+    do pty.AddMembersDelayed(fun () -> 
             [
                 for var in executor.GetVariableInfos() do
                     let mltype = executor.GetVariableMatlabType(var)
@@ -37,10 +40,47 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                                 GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents name mltype @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
-            ]
-        )
+            ])
+    do pty.AddXmlDoc("This contains all variables which are bound when the type provider is loaded")
     do this.AddNamespace(rootNamespace,  [pty])
 
+    //
+    // Toolboxes and Functions 
+    //
+    let fty = ProvidedTypeDefinition(thisAssembly, rootNamespace, "Toolboxes", Some(typeof<obj>))
+    do fty.AddMembersDelayed(fun () -> 
+        [
+            let searchPaths = executor.GetFunctionSearchPaths()
+            let matlabRoot = executor.GetRoot()
+            let toolboxes = MatlabFunctionHelpers.toolboxesFromPaths matlabRoot searchPaths
+            for tb in toolboxes do
+                let tbType = ProvidedTypeDefinition(tb.Name, Some(typeof<obj>))
+                do tbType.AddMembersDelayed(fun () ->
+                    [
+                        for func in tb.Funcs do
+                            let funcParams = [ for p in func.InParams -> ProvidedParameter(func.Name, typeof<obj>, optionalValue=null) ]
+                            let pm = ProvidedMethod(
+                                            methodName = func.Name,
+                                            parameters = funcParams,
+                                            returnType = typeof<obj>,
+                                            IsStaticMethod = true,
+                                            InvokeCode = fun args -> 
+                                                            let name = func.Name 
+                                                            let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
+                                                            <@@ MatlabInterface.executor.CallFunction name %%namedArgs @@>)
+                            do pm.AddXmlDocDelayed(fun () -> "Function help goes here")
+                            yield pm
+                    ])
+                tbType.AddXmlDocDelayed(fun () -> "Toolbox help goes here")
+                yield tbType
+        ])
+    do fty.AddXmlDoc("Matlab toolboxes and functions live here")
+    do this.AddNamespace(rootNamespace,  [fty])
+
+
+    //
+    // Packages   
+    //
     let packages = executor.GetPackageNames()
     let pkgNs = rootNamespace + ".Packages"
     do for package in packages do                 
