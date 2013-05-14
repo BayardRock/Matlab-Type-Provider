@@ -250,9 +250,9 @@ module MatlabCallHelpers =
         System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
 
     let parseHelp (pkgName: string) (helpText: string) =
-        if helpText.StartsWith(Environment.NewLine + pkgName + "not found.") then "No Matlab documentation found."
-        else helpText |> removeHtmlTags
-            
+        if helpText.Trim() = "" then "No Matlab documentation found."
+        else helpText |> removeHtmlTags 
+
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =
      """strjoin( transpose (...
@@ -264,6 +264,8 @@ module MatlabStrings =
                                  x.Access}, '\t'), ...
                              meta.package.fromName('""" + pkgName + """').FunctionList, 'UniformOutput', false) ...                 
                 ), '\r')"""
+    let getHelpString (topic: string) =
+        """disp(help('""" + topic + """'))"""
 
 open System
 open System.Reflection
@@ -276,9 +278,18 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetFunctionSearchPaths () = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
     member t.GetRoot () = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
 
-    member t.GetPackageHelp (pkgName: string) = proxy.Execute [|"help " + pkgName|] :?> string |> parseHelp pkgName
-    member t.GetFunctionHelp (pkgName: string) (funcName: string) = 
-        let helpName = pkgName + "." + funcName in proxy.Execute [|"help " + helpName|] :?> string |> parseHelp helpName
+    member t.GetPackageHelp (pkgName: string) = proxy.Execute [|MatlabStrings.getHelpString pkgName|] :?> string |> parseHelp pkgName
+    member t.GetMethodHelp (pkgName: string) (funcName: string) = 
+        let helpName = pkgName + "." + funcName in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName
+    member t.GetToolboxHelp (tb: MatlabToolbox) = 
+        match tb.HelpName with
+        | Some (helpName) -> proxy.Execute [| MatlabStrings.getHelpString helpName |] :?> string |> parseHelp helpName
+        | None -> "Toolbox Path: " + tb.Path + Environment.NewLine + "No help available for this toolbox"
+    member t.GetFunctionHelp (tb: MatlabToolbox) (f: MatlabFunction) = 
+        match tb.HelpName with
+        | Some (tbHelpName) -> let helpName = tbHelpName + "\\" + f.Name in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName
+        | None -> "Function Path: " + f.Path + Environment.NewLine + "No help available for this function"
+
     member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
                                  :?> string |> parsePackages |> filterPackages
     member t.GetPackageFunctions (pkgName: string) = proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToFuncitonInfo

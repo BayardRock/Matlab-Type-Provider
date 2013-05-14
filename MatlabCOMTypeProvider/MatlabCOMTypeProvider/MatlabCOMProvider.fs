@@ -55,10 +55,18 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
             let toolboxes = MatlabFunctionHelpers.toolboxesFromPaths matlabRoot searchPaths
             for tb in toolboxes do
                 let tbType = ProvidedTypeDefinition(tb.Name, Some(typeof<obj>))
+                let getTBXML () = executor.GetToolboxHelp tb                
                 do tbType.AddMembersDelayed(fun () ->
                     [
+                        yield ProvidedProperty(
+                            propertyName = "HelpText", 
+                            propertyType = typeof<string>, 
+                            IsStatic = true, 
+                            GetterCode = let text = getTBXML () in fun args -> <@@ text @@> ) :> MemberInfo
+
                         for func in tb.Funcs do
                             let funcParams = [ for p in func.InParams -> ProvidedParameter(func.Name, typeof<obj>, optionalValue=null) ]
+                            let getXmlText () = executor.GetFunctionHelp tb func
                             let pm = ProvidedMethod(
                                             methodName = func.Name,
                                             parameters = funcParams,
@@ -68,13 +76,13 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                                                             let name = func.Name 
                                                             let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
                                                             <@@ MatlabInterface.executor.CallFunction name %%namedArgs @@>)
-                            do pm.AddXmlDocDelayed(fun () -> "Function help goes here")
-                            yield pm
+                            do pm.AddXmlDocDelayed(fun () -> getXmlText ())
+                            yield pm :> MemberInfo
                     ])
-                tbType.AddXmlDocDelayed(fun () -> "Toolbox help goes here")
+                tbType.AddXmlDocDelayed(fun () -> getTBXML ())
                 yield tbType
         ])
-    do fty.AddXmlDoc("Matlab toolboxes and functions live here")
+    do fty.AddXmlDoc("Matlab toolboxes and functions")
     do this.AddNamespace(rootNamespace,  [fty])
 
 
@@ -101,7 +109,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                                                     let name = pkgFunc.Name 
                                                     let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
                                                     <@@ MatlabInterface.executor.CallFunction name %%namedArgs @@>)
-                        pm.AddXmlDocDelayed(fun () -> executor.GetFunctionHelp package pkgFunc.Name)
+                        pm.AddXmlDocDelayed(fun () -> executor.GetMethodHelp package pkgFunc.Name)
                         yield pm
                 ]
            )         
