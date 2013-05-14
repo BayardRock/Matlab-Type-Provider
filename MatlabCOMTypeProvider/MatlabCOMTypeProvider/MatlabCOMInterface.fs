@@ -250,8 +250,8 @@ module MatlabCallHelpers =
         System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
 
     let parseHelp (pkgName: string) (helpText: string) =
-        if helpText.Trim() = "" then "No Matlab documentation found."
-        else helpText |> removeHtmlTags 
+        if helpText.Trim() = "" then None
+        else helpText |> removeHtmlTags |> Some
 
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =
@@ -282,13 +282,11 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetMethodHelp (pkgName: string) (funcName: string) = 
         let helpName = pkgName + "." + funcName in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName
     member t.GetToolboxHelp (tb: MatlabToolbox) = 
-        match tb.HelpName with
-        | Some (helpName) -> proxy.Execute [| MatlabStrings.getHelpString helpName |] :?> string |> parseHelp helpName
-        | None -> "Toolbox Path: " + tb.Path + Environment.NewLine + "No help available for this toolbox"
-    member t.GetFunctionHelp (tb: MatlabToolbox) (f: MatlabFunction) = 
-        match tb.HelpName with
-        | Some (tbHelpName) -> let helpName = tbHelpName + "\\" + f.Name in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName
-        | None -> "Function Path: " + f.Path + Environment.NewLine + "No help available for this function"
+        tb.HelpName |> Option.bind (fun helpName -> proxy.Execute [| MatlabStrings.getHelpString helpName |] :?> string |> parseHelp helpName)
+        |> function | Some (help) -> help | None -> "Toolbox Path: " + tb.Path + Environment.NewLine + "No help available for this toolbox"
+    member t.GetFunctionHelp (tb: MatlabToolbox) (f: MatlabFunction) =  
+        tb.HelpName |> Option.bind (fun tbHelpName -> let helpName = tbHelpName + "\\" + f.Name in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName)
+        |> function | Some (help) -> help | None -> "Function Path: " + f.Path + Environment.NewLine + "No help available for this function"
 
     member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
                                  :?> string |> parsePackages |> filterPackages
