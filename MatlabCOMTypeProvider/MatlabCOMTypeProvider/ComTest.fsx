@@ -25,3 +25,7 @@ Path.Combine(mlpath.Trim(), "toolbox\\")
 Path.GetDirectoryName(mlpath)
 mlpath.Trim()
 
+// Works
+proxy.Feval "nthroot" 1 [|2.0; 1.0|]
+
+proxy.Feval "fileparts" 4 [|"""d:\work\consoleApp.cpp"""|]

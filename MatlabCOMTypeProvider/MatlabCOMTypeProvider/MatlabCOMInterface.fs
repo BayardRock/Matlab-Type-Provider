@@ -28,14 +28,15 @@ module MatlabCOM =
         // Feval('functionname',numout,arg1,arg2,...) 
         //
         member t.Feval (name: string) (numoutparams: int) (args: obj []) : obj = 
-            let outParam: obj ref = ref null
-            let compositeArgs = Array.append [|box name; box numoutparams; box outParam|] args
+            //[| name; noutparams; result, arg1 ... argn |]
+            let prms : obj [] = Array.append [| name; numoutparams; null |] args
 
-            // Make third param (output) pass by ref
-            let mutable pm = ParameterModifier(compositeArgs.Length)
-            do pm.[2] <- true
-            do mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|pm|]) |> ignore
-            !outParam
+            // result must be pass by reference
+            let mutable prmsMod = ParameterModifier(prms.Length)
+            do prmsMod.[2] <- true
+
+            do mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod, null, ml, prms, [|prmsMod|], null, null) |> ignore
+            prms.[2]
     
         //
         // Read a char array from matlab as a string
@@ -278,9 +279,14 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetFunctionSearchPaths () = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
     member t.GetRoot () = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
 
-    member t.GetPackageHelp (pkgName: string) = proxy.Execute [|MatlabStrings.getHelpString pkgName|] :?> string |> parseHelp pkgName
+    member t.GetPackageHelp (pkgName: string) = 
+        match proxy.Execute [|MatlabStrings.getHelpString pkgName|] :?> string |> parseHelp pkgName with
+        | Some (help) -> help
+        | None -> "No help available for this Package"
     member t.GetMethodHelp (pkgName: string) (funcName: string) = 
-        let helpName = pkgName + "." + funcName in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName
+        match let helpName = pkgName + "." + funcName in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName with
+        | Some (help) -> help
+        | None -> "No help available for this method"
     member t.GetToolboxHelp (tb: MatlabToolbox) = 
         tb.HelpName |> Option.bind (fun helpName -> proxy.Execute [| MatlabStrings.getHelpString helpName |] :?> string |> parseHelp helpName)
         |> function | Some (help) -> help | None -> "Toolbox Path: " + tb.Path + Environment.NewLine + "No help available for this toolbox"
@@ -304,7 +310,13 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         | MatlabTypes.MMatrix            -> typeof<double [,]>       
         | MatlabTypes.MUnexpected -> failwith (sprintf "Could not figure out type for Unexpected/Unsupported Variable Type: %A" v)
         | _ -> failwith "Unexpected MatlabTypes enumeration value"
-    member t.CallFunction (name: string) (args: obj []) = proxy.Feval name 1 args
+
+    member t.CallFunction (name: string) (numout: int) (args: obj []) : obj = 
+        match proxy.Feval name numout args with
+        | :? (obj []) as arrayRes when arrayRes.Length <= 8 ->
+            let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
+            Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)
+        | x -> x
 
     member t.GetVariableContents (vname: string) (vtype: MatlabTypes) = 
         match vtype with
