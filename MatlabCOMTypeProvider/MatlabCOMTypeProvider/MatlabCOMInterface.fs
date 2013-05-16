@@ -241,9 +241,17 @@ module MatlabCallHelpers =
     let removeHtmlTags (html: string) =
         System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
 
+    let addXMCDocMarkup (helpText: string) =   
+        let splitChars = Environment.NewLine.ToCharArray()     
+        let innerText = 
+            helpText.Split(splitChars, StringSplitOptions.None) 
+            |> Seq.map (fun str -> """<para>""" + str + """</para>""")
+            |> Seq.reduce (+)
+        """<summary>""" + innerText + """</summary>"""
+
     let parseHelp (pkgName: string) (helpText: string) =
         if helpText.Trim() = "" then None
-        else helpText |> removeHtmlTags |> Some
+        else helpText |> removeHtmlTags |> addXMCDocMarkup |> Some
 
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =
