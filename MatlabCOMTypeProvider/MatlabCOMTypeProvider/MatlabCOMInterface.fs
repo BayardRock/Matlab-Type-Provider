@@ -133,15 +133,6 @@ module MatlabFunctionHelpers =
                 | None -> ()
         }        
 
-//    let searchPathsForFunctions (searchPaths: string seq) =
-//        seq {
-//            for searchPath in searchPaths do
-//                if Directory.Exists(searchPath) then
-//                    let funcs = searchPathForFunctions(searchPath)
-//                    yield searchPath, funcs
-//        }
-
-
     let toolboxesFromPaths (matlabPath: string) (searchPaths: string seq) = 
         seq {
             let toolboxPath = Path.Combine(matlabPath, "toolbox")

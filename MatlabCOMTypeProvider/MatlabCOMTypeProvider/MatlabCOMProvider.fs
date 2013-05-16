@@ -58,46 +58,44 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                 let getTBXML () = executor.GetToolboxHelp tb                
                 do tbType.AddMembersDelayed(fun () ->
                     [
+                        #if DEBUG
+                        // Debug Property For Looking at the toolbox XMLDOC in Plain Text    
                         yield ProvidedProperty(
-                            propertyName = "HelpText", 
+                            propertyName = "XMLDoc", 
                             propertyType = typeof<string>, 
                             IsStatic = true, 
                             GetterCode = let text = getTBXML () in fun args -> <@@ text @@> ) :> MemberInfo
-
+                        #endif
+                            
                         for func in tb.Funcs do
-                            let funcParams = 
-                                [ for p in func.InParams -> ProvidedParameter(p, typeof<obj>, optionalValue=null) 
-                                ]
+                            let funcParams = [ for p in func.InParams -> ProvidedParameter(p, typeof<obj>, optionalValue=null) ]
                             let getXmlText () = executor.GetFunctionHelp tb func
-                            let outputTypes = 
-                                [
-                                    if func.OutParams.Length = 0 then yield 0, typeof<unit>
-                                    else
-                                        for i = 1 to min (func.OutParams.Length) 9 do
-                                            yield i, match i with
-                                                     | 1 -> typeof<obj>
-                                                     | 2 -> typeof<Tuple<obj,obj>>
-                                                     | 3 -> typeof<Tuple<obj,obj,obj>>
-                                                     | 4 -> typeof<Tuple<obj,obj,obj,obj>>
-                                                     | 5 -> typeof<Tuple<obj,obj,obj,obj,obj>>
-                                                     | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj>>
-                                                     | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj>>
-                                                     | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj>>
-                                                     | _ -> typeof<obj []>
-                                ]
-                            for numout, outputType in outputTypes do
-                                let pm = ProvidedMethod(
-                                                methodName = func.Name,
-                                                parameters = funcParams,
-                                                returnType = outputType,
-                                                IsStaticMethod = true,
-                                                InvokeCode = fun args -> 
-                                                                let name = func.Name 
-                                                                let numout = numout
-                                                                let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
-                                                                <@@ MatlabInterface.executor.CallFunction name numout %%namedArgs @@>)
-                                do pm.AddXmlDocDelayed(fun () -> getXmlText ())
-                                yield pm :> MemberInfo
+                            let outputType = 
+                                    match func.OutParams.Length with
+                                    | 0 -> typeof<unit>
+                                    | 1 -> typeof<obj ref>
+                                    | 2 -> typeof<Tuple<obj,obj> ref>
+                                    | 3 -> typeof<Tuple<obj,obj,obj> ref>
+                                    | 4 -> typeof<Tuple<obj,obj,obj,obj> ref>
+                                    | 5 -> typeof<Tuple<obj,obj,obj,obj,obj> ref>
+                                    | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj> ref>
+                                    | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj> ref>
+                                    | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj> ref>
+                                    | _ -> typeof<obj [] ref>
+                                
+                            let pm = ProvidedMethod(
+                                            methodName = func.Name,
+                                            parameters = funcParams,
+                                            returnType = outputType,
+                                            IsStaticMethod = true,
+                                            InvokeCode = fun args -> 
+                                                            let name = func.Name 
+                                                            let numout = func.OutParams.Length                                                            
+                                                            let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, args)
+                                                            <@@ MatlabInterface.executor.CallFunction name numout %%namedInArgs @@>)
+
+                            do pm.AddXmlDocDelayed(fun () -> getXmlText ())
+                            yield pm :> MemberInfo
                     ])
                 tbType.AddXmlDocDelayed(fun () -> getTBXML ())
                 yield tbType
