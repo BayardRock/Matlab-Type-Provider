@@ -73,14 +73,14 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                             let outputType = 
                                     match func.OutParams.Length with
                                     | 0 -> typeof<unit>
-                                    | 1 -> typeof<obj ref>
-                                    | 2 -> typeof<Tuple<obj,obj> ref>
-                                    | 3 -> typeof<Tuple<obj,obj,obj> ref>
-                                    | 4 -> typeof<Tuple<obj,obj,obj,obj> ref>
-                                    | 5 -> typeof<Tuple<obj,obj,obj,obj,obj> ref>
-                                    | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj> ref>
-                                    | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj> ref>
-                                    | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj> ref>
+                                    | 1 -> typeof<obj>
+                                    | 2 -> typeof<Tuple<obj,obj>>
+                                    | 3 -> typeof<Tuple<obj,obj,obj>>
+                                    | 4 -> typeof<Tuple<obj,obj,obj,obj>>
+                                    | 5 -> typeof<Tuple<obj,obj,obj,obj,obj>>
+                                    | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj>>
+                                    | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj>>
+                                    | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj>>
                                     | _ -> typeof<obj [] ref>
                                 
                             let pm = ProvidedMethod(
