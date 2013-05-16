@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>F# Matlab Type Provider by BayardRock</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>F# Matlab Type Provider</h1>
+        <p>A (not yet complete) Type Provider for Matlab in the spirit of the R Type Provider</p>
+
+        <p class="view"><a href="https://github.com/BayardRock/Matlab-Type-Provider">View the Project on GitHub <small>BayardRock/Matlab-Type-Provider</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/BayardRock/Matlab-Type-Provider/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/BayardRock/Matlab-Type-Provider/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/BayardRock/Matlab-Type-Provider">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h3>What to expect</h3>
+
+<p>For 1.0 I want to have support for most Matlab types and functions.  Currently it just allows you pull in a few types of variables after you connect.  It's highly unstable and under heavy work.  You should probably just wait a week or two for the initial release.</p>
+
+<h3>Requirements</h3>
+
+<ul>
+<li>Matlab 2013a (currently uses strjoin quite a bit)</li>
+<li>Visual Studio 2012</li>
+</ul><h3>Current Capabilities</h3>
+
+<ul>
+<li>Access non-complex Values, Matrices and Vectors in a strongly typed fashion. </li>
+</ul><h3>Known Problems</h3>
+
+<ul>
+<li>The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux.</li>
+</ul><h3>Getting Started</h3>
+
+<p>Add the following parameters to your Matlab 2013a shortcut:</p>
+
+<p><code>matlab.exe -automation -desktop</code></p>
+
+<p>This will allow you to keep a Matlab session open while you connect and disconnect with Visual Studio. Then just access vars like so from inside of Visual Studio: </p>
+
+<p><code>let xFromMatlab = Matlab.COMTypeProvider.Var.X</code></p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/BayardRock">BayardRock</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
