@@ -39,24 +39,6 @@
 <ul>
 <li>Matlab 2013a</li>
 <li>Visual Studio 2012</li>
-</ul><h3>Current Capabilities</h3>
-
-<ul>
-<li>Access non-complex Values, Matrices and Vectors in a strongly typed fashion. </li>
-<li>The ability to call Matlab Toolbox functions with appropriate F# values</li>
-</ul><h3>Known Problems / Future Work</h3>
-
-<ul>
-<li>The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux.</li>
-<li>The Matlab 2013a requirement is due to the frequent use of strjoin.  Once stable I'd like to find another way of making these calls work.</li>
-<li>Currently any call to a Matlab function will return all of its result values, even the optional ones.  I'm currently exploring several approaches to resolving this.</li>
-<li>Functions with a variable number of arguments are not currently supported.</li>
-<li>Toolbox naming is a bit wonky.  Ideally I'd like them to exist as nested namespaces.</li>
-<li>The type provider does not currently take any static parameters.  I'd like it to support at least the ability to select the way to contact Matlab and also to execute a specified script to bind variables.</li>
-</ul><h3>Planned Limitations</h3>
-
-<ul>
-<li>The result of calls to Matlab functions will be untyped for the foreseeable future.  As it currently stands, there seems be no way to provide types for Matlab functions without manual labeling.</li>
 </ul><h3>Getting Started</h3>
 
 <p>Add the following parameters to your Matlab 2013a shortcut:</p>
@@ -76,6 +58,27 @@
 <p>Finally, you can find supported functions inside of their Matlab toolboxes:</p>
 
 <p><code>let res = Matlab.Toolboxes.``matlab\elfun``.nthroot(6.0, 2.0)</code></p>
+
+<h3>Current Capabilities</h3>
+
+<ul>
+<li>Access non-complex Values, Matrices and Vectors in a strongly typed fashion. </li>
+<li>The ability to call Matlab Toolbox functions with appropriate F# values</li>
+</ul><h3>Known Problems / Future Work</h3>
+
+<ul>
+<li>The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux.</li>
+<li>The Matlab 2013a requirement is due to the frequent use of strjoin.  Once stable I'd like to find another way of making these calls work.</li>
+<li>Currently any call to a Matlab function will return all of its result values, even the optional ones.  I'm currently exploring several approaches to resolving this.</li>
+<li>Functions with a variable number of arguments are not currently supported.</li>
+<li>Toolbox naming is a bit wonky.  Ideally I'd like them to exist as nested namespaces.</li>
+<li>The type provider does not currently take any static parameters.  I'd like it to support at least the ability to select the way to contact Matlab and also to execute a specified script to bind variables.</li>
+<li>It would be ideal to be able to compose functions in F# and then have the entire call be executed in Matlab.  This may take some doing, but I believe it's completely possible. </li>
+</ul><h3>Planned Limitations</h3>
+
+<ul>
+<li>The parameters to and the result of calls to Matlab functions will remain untyped for the foreseeable future.  As it currently stands, there seems be no way to provide types for Matlab functions without manual labeling as with TypeScript.</li>
+</ul>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/BayardRock">BayardRock</a></p>
