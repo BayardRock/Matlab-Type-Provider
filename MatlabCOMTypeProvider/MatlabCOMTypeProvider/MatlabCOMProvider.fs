@@ -81,7 +81,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                                     | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj>>
                                     | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj>>
                                     | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj>>
-                                    | _ -> typeof<obj [] ref>
+                                    | _ -> typeof<obj []>
                                 
                             let pm = ProvidedMethod(
                                             methodName = func.Name,
