@@ -52,7 +52,7 @@
 <li>Currently any call to a Matlab function will return all of its result values, even the optional ones.  I'm currently exploring several approaches to resolving this.</li>
 <li>Functions with a variable number of arguments are not currently supported.</li>
 <li>Toolbox naming is a bit wonky.  Ideally I'd like them to exist as nested namespaces.</li>
-<li>The type provider does not currently take any static parameters.  I'd like it to support </li>
+<li>The type provider does not currently take any static parameters.  I'd like it to support at least the ability to select the way to contact Matlab and also to execute a specified script to bind variables.</li>
 </ul><h3>Planned Limitations</h3>
 
 <ul>
@@ -63,7 +63,9 @@
 
 <p><code>matlab.exe -automation -desktop</code></p>
 
-<p>This will allow you to keep a Matlab session open while you connect and disconnect with Visual Studio. Then just access vars like so from inside of Visual Studio: </p>
+<p>This will allow you to keep a Matlab session open while you connect and disconnect with Visual Studio. If you don't do this then the Matlab Provider will launch a session when it starts which will close when the Type Provider is unloaded. </p>
+
+<p>Then just access vars like so from inside of Visual Studio: </p>
 
 <p><code>let xFromMatlab = Matlab.Vars.X</code></p>
 
