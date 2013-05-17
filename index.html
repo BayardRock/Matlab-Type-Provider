@@ -39,6 +39,11 @@
 <ul>
 <li>Matlab 2013a (or earlier with <a href="http://www.mathworks.com/matlabcentral/fileexchange/31862-strjoin">strjoin.m</a>, tested with 2012a)</li>
 <li>Visual Studio 2012 (May work with other Windows F# IDEs as well, but not tested)</li>
+</ul><h3>Current Capabilities</h3>
+
+<ul>
+<li>Access non-complex Values, Matrices and Vectors in a strongly typed fashion. </li>
+<li>The ability to call Matlab Toolbox functions with appropriate F# values (no varargin support yet).</li>
 </ul><h3>Getting Started</h3>
 
 <p>Add the following parameters to your Matlab 2013a shortcut:</p>
@@ -59,12 +64,7 @@
 
 <p><code>let res = Matlab.Toolboxes.``matlab\elfun``.nthroot(6.0, 2.0)</code></p>
 
-<h3>Current Capabilities</h3>
-
-<ul>
-<li>Access non-complex Values, Matrices and Vectors in a strongly typed fashion. </li>
-<li>The ability to call Matlab Toolbox functions with appropriate F# values (no varargin support yet)</li>
-</ul><h3>Known Problems / Future Work</h3>
+<h3>Known Problems / Future Work</h3>
 
 <ul>
 <li>The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux.</li>
