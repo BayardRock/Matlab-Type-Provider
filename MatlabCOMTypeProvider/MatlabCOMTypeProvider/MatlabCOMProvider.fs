@@ -15,6 +15,52 @@ module MatlabInterface =
     let executor = MatlabCommandExecutor(new MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
 
 
+module ProviderHelpers = 
+    let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
+            [
+                for var in executor.GetVariableInfos() do
+                    let mltype = executor.GetVariableMatlabType(var)
+                    let p = ProvidedProperty(
+                                propertyName = var.Name, 
+                                propertyType = executor.GetVariableDotNetType(var), 
+                                IsStatic = true,
+                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents name mltype @@>)
+                    p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
+                    yield p                   
+            ]
+
+    let internal getTypeForNumerOfOutputs = 
+        function
+        | 0 -> typeof<unit>
+        | 1 -> typeof<obj>
+        | 2 -> typeof<Tuple<obj,obj>>
+        | 3 -> typeof<Tuple<obj,obj,obj>>
+        | 4 -> typeof<Tuple<obj,obj,obj,obj>>
+        | 5 -> typeof<Tuple<obj,obj,obj,obj,obj>>
+        | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj>>
+        | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj>>
+        | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj>>
+        | _ -> typeof<obj []>
+
+    /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
+    let generateFullFunctionCallFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolbox) (mlfun: MatlabFunction) =
+        let funcParams = [ for p in mlfun.InParams -> ProvidedParameter(p, typeof<obj>, optionalValue=null) ]
+        let getXmlText () = executor.GetFunctionHelp tb mlfun
+        let outputType = getTypeForNumerOfOutputs mlfun.OutParams.Length
+                                
+        let pm = ProvidedMethod(
+                        methodName = mlfun.Name,
+                        parameters = funcParams,
+                        returnType = outputType,
+                        IsStaticMethod = true,
+                        InvokeCode = fun args -> 
+                                        let name = mlfun.Name 
+                                        let numout = mlfun.OutParams.Length                                                            
+                                        let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, args)
+                                        <@@ MatlabInterface.executor.CallFunction name numout %%namedInArgs @@>)
+        pm.AddXmlDocDelayed(fun () -> getXmlText ())
+        pm
+
 [<TypeProvider>]
 type MatlabCOMProvider (config: TypeProviderConfig) as this = 
     inherit TypeProviderForNamespaces()
@@ -29,18 +75,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     // Base Variables
     //
     let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"Vars", Some(typeof<obj>))
-    do pty.AddMembersDelayed(fun () -> 
-            [
-                for var in executor.GetVariableInfos() do
-                    let mltype = executor.GetVariableMatlabType(var)
-                    let p = ProvidedProperty(
-                                propertyName = var.Name, 
-                                propertyType = executor.GetVariableDotNetType(var), 
-                                IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents name mltype @@>)
-                    p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
-                    yield p                   
-            ])
+    do pty.AddMembersDelayed(fun () -> ProviderHelpers.generateTypesForMatlabVariables executor)
     do pty.AddXmlDoc("This contains all variables which are bound when the type provider is loaded")
     do this.AddNamespace(rootNamespace,  [pty])
 
@@ -68,34 +103,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
                         #endif
                             
                         for func in tb.Funcs do
-                            let funcParams = [ for p in func.InParams -> ProvidedParameter(p, typeof<obj>, optionalValue=null) ]
-                            let getXmlText () = executor.GetFunctionHelp tb func
-                            let outputType = 
-                                    match func.OutParams.Length with
-                                    | 0 -> typeof<unit>
-                                    | 1 -> typeof<obj>
-                                    | 2 -> typeof<Tuple<obj,obj>>
-                                    | 3 -> typeof<Tuple<obj,obj,obj>>
-                                    | 4 -> typeof<Tuple<obj,obj,obj,obj>>
-                                    | 5 -> typeof<Tuple<obj,obj,obj,obj,obj>>
-                                    | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj>>
-                                    | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj>>
-                                    | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj>>
-                                    | _ -> typeof<obj []>
-                                
-                            let pm = ProvidedMethod(
-                                            methodName = func.Name,
-                                            parameters = funcParams,
-                                            returnType = outputType,
-                                            IsStaticMethod = true,
-                                            InvokeCode = fun args -> 
-                                                            let name = func.Name 
-                                                            let numout = func.OutParams.Length                                                            
-                                                            let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, args)
-                                                            <@@ MatlabInterface.executor.CallFunction name numout %%namedInArgs @@>)
-
-                            do pm.AddXmlDocDelayed(fun () -> getXmlText ())
-                            yield pm :> MemberInfo
+                            yield ProviderHelpers.generateFullFunctionCallFromDescription executor tb func :> MemberInfo
                     ])
                 tbType.AddXmlDocDelayed(fun () -> getTBXML ())
                 yield tbType
@@ -106,6 +114,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
 
     //
     // Packages   
+    // Note: Currently Very Experimental, and not very useful
     //
     let packages = executor.GetPackageNames()
     let pkgNs = rootNamespace + ".Packages"

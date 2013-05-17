@@ -6,7 +6,10 @@ let m = Matlab.Vars.m
 let v = Matlab.Vars.v
 let v2 = Matlab.Vars.v2
 
-// Standard Basic Types
+// Standard Function Call
 let x = Matlab.Toolboxes.``matlab\elfun``.nthroot(2.0, 1)
-// Complex Types
 
+// Complex Types
+Matlab.Vars.imag_matrix
+Matlab.Vars.imag_vector
+Matlab.Vars.imag_single
