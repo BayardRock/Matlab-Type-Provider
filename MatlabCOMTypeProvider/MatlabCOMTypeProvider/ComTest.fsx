@@ -36,14 +36,14 @@ proxy.Execute([|"vector = [1 2 3 4 5]" |])
 proxy.Execute([|"imag_single = rand(1,1)+i*rand(1,1)" |])
 proxy.Execute([|"imag_vector = rand(1,3)+i*rand(1,3)" |])
 proxy.Execute([|"imag_matrix = rand(3,3)+i*rand(3,3)" |])
-open System
-open System.Reflection
 
 let ml = proxy.MatlabInstance
 let mtyp = proxy.MatlabType
 
 #r "Microsoft.VisualBasic"
 
+open System
+open System.Reflection
 open Microsoft.VisualBasic.CompilerServices
 open Microsoft.VisualBasic
 
@@ -51,24 +51,29 @@ let getmatrixsize (name: string) =
     let i = exec.GetVariableInfo(name) in i.Value.Size.[0], i.Value.Size.[1] 
     
 
-let getfullmatrix var (xsize: int) (ysize:int) = 
-        let memptyw = Array.empty<double>
-       
-        let xreal = Array.CreateInstance(typeof<System.Numerics.Complex>, [|xsize; ysize|])
-        let ximag = Array.CreateInstance(typeof<System.Numerics.Complex>, [|xsize; ysize|])
+let getfullmatrix (var: string, xsize: int, ysize: int, hasImag: bool) = 
 
-        let argsv : obj []  =  [|var;   "base"; xreal; ximag |]
-        let argsc : bool [] =  [|false; false;  true;  true; |]
+    let xreal = Array.CreateInstance(typeof<Double>, [|xsize; ysize|])
+    let ximag = 
+        if hasImag then Array.CreateInstance(typeof<Double>, [|xsize; ysize|])
+        else Array2D.zeroCreate 0 0 :> Array
 
+    let argsv : obj []  =  [|var;   "base"; xreal; ximag |]
+    let argsc : bool [] =  [|false; false;  true;  true; |]
 
-        LateBinding.LateCall(ml, null, "GetFullMatrix", argsv, null, argsc)
+    LateBinding.LateCall(ml, null, "GetFullMatrix", argsv, null, argsc)
 
-        argsv.[2], argsv.[3]
+    argsv.[2], argsv.[3]
+    
 
-getfullmatrix "vector" 1 5
-getfullmatrix "matrix" 3 3 
-getfullmatrix "imag_matrix" 3 3
-getfullmatrix "imag_single" 1 1
+getfullmatrix ("vector", 1, 5, false)
+getfullmatrix ("matrix", 3, 3, false)
+getfullmatrix ("imag_matrix", 3, 3, true)
+getfullmatrix ("imag_vectorT", 1, 3, true)
+getfullmatrix ("imag_vector", 3, 1, true)
+
+// WORKS! 
+getfullmatrix("imag_single", 1, 1, true) |> fst
 
 proxy.GetFullMatrix("matrix") 3 3
 

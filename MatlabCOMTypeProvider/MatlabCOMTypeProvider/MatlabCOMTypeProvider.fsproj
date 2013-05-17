@@ -47,8 +47,8 @@
     <Compile Include="MatlabFunctionParsing.fs" />
     <Compile Include="MatlabCOMInterface.fs" />
     <Compile Include="MatlabCOMProvider.fs" />
-    <None Include="Test.fsx" />
     <None Include="ComTest.fsx" />
+    <None Include="Test.fsx" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>

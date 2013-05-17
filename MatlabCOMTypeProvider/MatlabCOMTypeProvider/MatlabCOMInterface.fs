@@ -71,7 +71,7 @@ module MatlabCOM =
 
             LateBinding.LateCall(ml, null, "GetFullMatrix", argsv, null, argsc)
 
-            argsv.[2], argsv.[3]
+            argsv.[2] :?> double [,], if hasImag then argsv.[3] :?> double [,] else Array2D.zeroCreate 0 0
     
         /// Use GetWorkspaceData instead of GetFullMatrix and GetCharArray to get numeric and character array data, respectively. Do not use GetWorkspaceData on sparse arrays, structures, or function handles.
         /// These functions use the variant data type instead of the safearray data type used by GetFullMatrix and PutFullMatrix.
@@ -346,31 +346,35 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
     member t.GetVariableContents (vname: string) (vtype: MatlabTypes) = 
         match vtype with
-        //| MComplex -> failwith "Accessing complex types is not yet supported"
         | MatlabTypes.MString     -> proxy.GetCharArray(vname) :> obj
         | MatlabTypes.MDouble     -> proxy.GetVariable(vname) 
-        | MatlabTypes.MVector     -> proxy.GetVariable(vname) 
+        | MatlabTypes.MVector     -> 
+            match t.GetVariableInfo(vname) with
+            | Some { Size = [1; sy] } -> 
+                let real, _ = proxy.GetFullMatrix(vname, 1, sy, hasImag = true) 
+                let carr = Array.CreateInstance(typeof<double>, sy) :?> double []
+                for i = 0 to sy - 1 do Array.set carr i (real.[0,i])
+                carr :> obj
+            | _ -> failwith (sprintf "Variable %s does not exist or is not a vector" vname)
         | MatlabTypes.MMatrix     -> 
             match t.GetVariableInfo(vname) with
-            | Some { Size = [sx;sy] } -> proxy.GetFullMatrix(vname,sx,sy) |> fst
+            | Some { Size = [sx;sy] } -> proxy.GetFullMatrix(vname,sx,sy) |> fst :> obj
             | _ -> failwith (sprintf "Variable %s does not exist or is not a matrix" vname)
         | MatlabTypes.MComplexDouble     -> 
-            let real = proxy.GetVariable(vname) :?> double
-            let imag = proxy.Feval "imag" 1 [|"=" + vname|] :?> double
-            System.Numerics.Complex(real, imag) :> obj
+            let r, i = proxy.GetFullMatrix(vname,1,1,true) |> fun (r,i) -> r.[0,0], i.[0,0]
+            System.Numerics.Complex(r, i) :> obj
         | MatlabTypes.MComplexVector     ->
             match t.GetVariableInfo(vname) with
-            | Some { Size = [sx; 1]; Attributes = ["complex"] } -> 
-                let real, imag = proxy.GetFullMatrix(vname, sx, hasImag = true) in 
-                    Array.zip (real :?> double []) (imag :?> double []) 
-                    |> Array.map (fun (r,i) -> System.Numerics.Complex(r,i))
-                    :> obj
+            | Some { Size = [1; sy]; Attributes = ["complex"] } -> 
+                let real, imag = proxy.GetFullMatrix(vname, 1, sy, hasImag = true) 
+                let carr = Array.CreateInstance(typeof<System.Numerics.Complex>, sy) :?> Complex [] 
+                for i = 0 to sy - 1 do Array.set carr i (Complex(real.[0,i], imag.[0,i]))
+                carr :> obj
             | _ -> failwith (sprintf "Variable %s does not exist or is not a complex vector" vname)         
         | MatlabTypes.MComplexMatrix     -> 
             match t.GetVariableInfo(vname) with
             | Some { Size = [sx;sy]; Attributes = ["complex"] } -> 
                 let real, imag = proxy.GetFullMatrix(vname, sx, ysize = sy, hasImag = true) 
-                let real, imag = real :?> double [,], imag :?> double [,]                    
                 let carr = Array.CreateInstance(typeof<System.Numerics.Complex>, sx, sy) :?> Complex [,] 
                 for i = 0 to sx - 1 do
                     for j = 0 to sy - 1 do
