@@ -1,9 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MatlabCOMTypeProvider", "MatlabCOMTypeProvider\MatlabCOMTypeProvider.fsproj", "{23FC6DC2-EEC7-4501-9546-1C285726E1AD}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Matlab.COMTypeProvider.Tests", "Matlab.COMTypeProvider.Tests\Matlab.COMTypeProvider.Tests.fsproj", "{FFB16D64-493E-41A5-A82C-F7C9A0F6E7C5}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MatlabCOMTypeProvider", "MatlabTypeProvider\MatlabCOMTypeProvider.fsproj", "{23FC6DC2-EEC7-4501-9546-1C285726E1AD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,10 +13,6 @@ Global
 		{23FC6DC2-EEC7-4501-9546-1C285726E1AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23FC6DC2-EEC7-4501-9546-1C285726E1AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23FC6DC2-EEC7-4501-9546-1C285726E1AD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FFB16D64-493E-41A5-A82C-F7C9A0F6E7C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FFB16D64-493E-41A5-A82C-F7C9A0F6E7C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FFB16D64-493E-41A5-A82C-F7C9A0F6E7C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FFB16D64-493E-41A5-A82C-F7C9A0F6E7C5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

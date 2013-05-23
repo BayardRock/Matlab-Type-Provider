@@ -12,7 +12,7 @@ Matlab.Vars.vector
 Matlab.Vars.vectorT
 
 // Standard Function Call
-let x = Matlab.Toolboxes.``matlab\elfun``.nthroot(2.0, 1)
+let x = Matlab.Toolboxes.``matlab\elfun``.nthroot(2.0, 1.0)
 
 // Complex Types
 Matlab.Vars.imag_matrix
@@ -20,4 +20,5 @@ Matlab.Vars.imag_vector
 Matlab.Vars.imag_vectorT
 Matlab.Vars.imag_single
 
+// Varargin Function Call
 

@@ -12,7 +12,7 @@ open Microsoft.FSharp.Quotations
 open FSMatlab.COMInterface
 
 module MatlabInterface =    
-    let executor = MatlabCommandExecutor(new MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
+    let executor = MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
 
 
 module ProviderHelpers = 
@@ -29,24 +29,30 @@ module ProviderHelpers =
                     yield p                   
             ]
 
-    let internal getTypeForNumerOfOutputs = 
-        function
-        | 0 -> typeof<unit>
-        | 1 -> typeof<obj>
-        | 2 -> typeof<Tuple<obj,obj>>
-        | 3 -> typeof<Tuple<obj,obj,obj>>
-        | 4 -> typeof<Tuple<obj,obj,obj,obj>>
-        | 5 -> typeof<Tuple<obj,obj,obj,obj,obj>>
-        | 6 -> typeof<Tuple<obj,obj,obj,obj,obj,obj>>
-        | 7 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj>>
-        | 8 -> typeof<Tuple<obj,obj,obj,obj,obj,obj,obj,obj>>
-        | _ -> typeof<obj []>
+    let internal getParamsForFunctionInputs (mlfun: MatlabFunction) =
+        let hasVarargin = match mlfun.InParams |> List.rev with | "varargin" :: rest -> true | _ -> false
+        [                     
+            for p in mlfun.InParams do
+                if p = "varargin" then 
+                    yield ProvidedParameter(p, typeof<obj []>, optionalValue=[||]) 
+                else yield ProvidedParameter(p, typeof<obj>, optionalValue=null) 
+        ], hasVarargin
+
+    let internal getParamsForFunctionOutputs (mlfun: MatlabFunction) = 
+        let hasVarargout = match mlfun.OutParams |> List.rev with | "varargout" :: rest -> true | _ -> false
+        let outparams =  
+            seq {
+                for i = 0 to mlfun.OutParams.Length - 2 do
+                    yield typeof<obj>
+                yield if hasVarargout then typeof<obj array> else typeof<obj>
+            } |> Seq.toArray
+        Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(outparams), hasVarargout
 
     /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
     let generateFullFunctionCallFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolbox) (mlfun: MatlabFunction) =
-        let funcParams = [ for p in mlfun.InParams -> ProvidedParameter(p, typeof<obj>, optionalValue=null) ]
-        let getXmlText () = executor.GetFunctionHelp tb mlfun
-        let outputType = getTypeForNumerOfOutputs mlfun.OutParams.Length
+        let funcParams, hasVarargin = getParamsForFunctionInputs mlfun
+        let outputType, hasVarargout = getParamsForFunctionOutputs mlfun
+        let getXmlText () = executor.GetFunctionHelp tb mlfun        
                                 
         let pm = ProvidedMethod(
                         methodName = mlfun.Name,
@@ -57,7 +63,7 @@ module ProviderHelpers =
                                         let name = mlfun.Name 
                                         let numout = mlfun.OutParams.Length                                                            
                                         let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, args)
-                                        <@@ MatlabInterface.executor.CallFunction name numout %%namedInArgs @@>)
+                                        <@@ MatlabInterface.executor.CallFunction name numout %%namedInArgs hasVarargin hasVarargout @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm
 
@@ -68,7 +74,7 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     let thisAssembly  = Assembly.GetExecutingAssembly()
 
     let mlKind = "Matlab.Desktop.Application"
-    let proxy = MatlabCOM.MatlabCOMProxy mlKind  
+    let proxy = FSMatlab.MatlabCOM.MatlabCOMProxy mlKind  
     let executor = MatlabCommandExecutor proxy
     
     //

@@ -40,6 +40,10 @@ proxy.Execute([|"imag_matrix = rand(3,3)+i*rand(3,3)" |])
 let ml = proxy.MatlabInstance
 let mtyp = proxy.MatlabType
 
+//
+// GetFull Matrix Playground
+//
+
 #r "Microsoft.VisualBasic"
 
 open System
@@ -80,3 +84,31 @@ proxy.GetFullMatrix("matrix") 3 3
 proxy.Execute [| "imag(imag_single)" |]
 proxy.Feval "imag" 1 [|"imag_single"|]
 proxy.Feval "cos" 1 [|2.0|]
+
+//
+// Function call playground
+//
+
+let v = [|1.0; 2.0; 3.0|]
+proxy.Feval "cos" 1 [|v|]
+
+let v = array2D [|[|1.0; 2.0; 3.0|]; [|4.0;5.0;6.0|]|]
+proxy.Feval "cos" 1 [|v|]
+
+let size = let sz = proxy.Feval "size" 1 [|v|] :?> obj [] |> Array.map (fun v -> v :?> double [,]) in (Array.get sz 0) 
+
+proxy.PutFullMatrix("size", size)
+proxy.Feval "length" 1 [|size|]
+proxy.Feval "sub2ind" 1 [|size, 1, 1|]
+
+//
+// Varargin Playground
+//
+proxy.Feval "strcat" 1 [|"jello"; " world"; " yo"|]
+
+let dims = [|2.0; 2.0|]
+let indices = [|1.0;2.0;3.0;4.0;5.0;6.0;7.0;8.0|]
+let slen = proxy.Feval "length" 1 [|dims|]
+
+//function ndx = sub2ind(siz,varargin)
+proxy.Feval "sub2ind" 1 [|[|2.0; 2.0|], indices|]
