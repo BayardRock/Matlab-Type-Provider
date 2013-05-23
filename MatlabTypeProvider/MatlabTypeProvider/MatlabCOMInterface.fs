@@ -170,6 +170,17 @@ module MatlabCallHelpers =
         | MatlabTypes.MUnexpected -> failwith (sprintf "Unsupported Variable Type")
         | _ -> failwith "Unexpected MatlabTypes enumeration value"
 
+    let correctFEvalResult (res: obj) =
+        match res with
+        // One array (returned as [,])
+        | :? Array as arr when (arr.Rank = 2 && arr.GetLength(0) = 1) -> 
+            let copyBytes = System.Buffer.ByteLength(arr)
+            let elemType = arr.GetType().GetElementType()
+            let newArr = Array.CreateInstance(elemType, arr.GetLength(1))
+            do System.Buffer.BlockCopy(arr, 0, newArr, 0, copyBytes)
+            newArr :> obj
+        | x -> x
+
     let parsePackages (pkgs: string) =
         pkgs.Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList |> List.map (fun pkg -> pkg.Trim())
 
@@ -263,13 +274,17 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
                 match args.[args.Length - 1] with
                 | :? (obj []) as varargin -> let nvar = (Array.sub args 0 (args.Length - 1)) in Array.append nvar varargin
                 | v -> args
-            else args
-        match proxy.Feval name numout expandedArgs with
-        | :? (obj []) as arrayRes when arrayRes.Length = 1 -> arrayRes.[0]
-        | :? (obj []) as arrayRes when arrayRes.Length <= 8 ->
-            let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
-            Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)
-        | x -> x
+            else args 
+            
+        match proxy.Feval name numout expandedArgs with 
+        | :? (obj []) as arrayRes -> 
+            match arrayRes |> Array.map correctFEvalResult with
+            | arrayRes when arrayRes.Length = 1 -> arrayRes.[0]
+            | arrayRes when arrayRes.Length <= 8 ->
+                let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
+                Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)
+            | arrayRes -> arrayRes :> obj
+        | unexpected -> failwith (sprintf "Unexpected type returned from Feval: %s" (unexpected.GetType().ToString()))
 
     member t.GetVariableContents (vname: string) (vtype: MatlabTypes) = 
         match vtype with

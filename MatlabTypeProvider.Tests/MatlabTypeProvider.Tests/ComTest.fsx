@@ -2,7 +2,7 @@
 
 open FSMatlab.COMInterface
 
-let proxy = new MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")
+let proxy = new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")
 let exec = new MatlabCommandExecutor(proxy)
 
 //let v = proxy.GetVariable("pkg")
@@ -112,3 +112,25 @@ let slen = proxy.Feval "length" 1 [|dims|]
 
 //function ndx = sub2ind(siz,varargin)
 proxy.Feval "sub2ind" 1 [|[|2.0; 2.0|], indices|]
+
+open System
+
+let correctFEvalResult (res: obj) =
+    match res with
+    // One array (returned as [,])
+    | :? Array as arr when (arr.Rank = 2 && arr.GetLength(0) = 1) -> 
+        Array.init (arr.GetLength(1)) (fun idx -> arr.GetValue(0, idx)) :> obj
+    | x -> x
+
+
+// let res = Matlab.Toolboxes.``matlab\elfun``.nthroot([|9.0; 49.0|], 2.0) 
+proxy.Feval "nthroot" 1 [|9.0; 2.0|]
+let res =  proxy.Feval "nthroot" 1 [|[|9.0; 49.0|]; 2.0|] :?> (obj [])
+res.[0].GetType().ToString()
+
+let arr = res.[0] :?> Array
+arr.Rank
+arr.GetLength(0)
+
+
+correctFEvalResult res.[0]
