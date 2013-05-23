@@ -1,4 +1,4 @@
-﻿#r """..\MatlabCOMTypeProvider\bin\Debug\MatlabCOMTypeProvider.dll"""
+﻿#r """..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Debug\MatlabTypeProvider.dll"""
 
 open FSMatlab.COMInterface
 

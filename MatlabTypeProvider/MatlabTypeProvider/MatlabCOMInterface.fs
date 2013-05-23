@@ -265,6 +265,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
                 | v -> args
             else args
         match proxy.Feval name numout expandedArgs with
+        | :? (obj []) as arrayRes when arrayRes.Length = 1 -> arrayRes.[0]
         | :? (obj []) as arrayRes when arrayRes.Length <= 8 ->
             let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
             Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)

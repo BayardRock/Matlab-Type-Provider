@@ -40,13 +40,17 @@ module ProviderHelpers =
 
     let internal getParamsForFunctionOutputs (mlfun: MatlabFunction) = 
         let hasVarargout = match mlfun.OutParams |> List.rev with | "varargout" :: rest -> true | _ -> false
-        let outparams =  
-            seq {
-                for i = 0 to mlfun.OutParams.Length - 2 do
-                    yield typeof<obj>
-                yield if hasVarargout then typeof<obj array> else typeof<obj>
-            } |> Seq.toArray
-        Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(outparams), hasVarargout
+        match mlfun.OutParams.Length with
+        | 1 when hasVarargout -> typeof<obj array>, true
+        | 1 -> typeof<obj>, false
+        | n -> 
+            let outparams =  
+                seq {
+                    for i = 0 to mlfun.OutParams.Length - 2 do
+                        yield typeof<obj>
+                    yield if hasVarargout then typeof<obj array> else typeof<obj>
+                } |> Seq.toArray
+            Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(outparams), hasVarargout            
 
     /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
     let generateFullFunctionCallFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolbox) (mlfun: MatlabFunction) =

@@ -1,4 +1,4 @@
-﻿module Matlab.COMTypeProvider.Tests
+﻿module Matlab.TypeProvider.Parser.Tests
 
 open Parsing
 open FSMatlab.FunctionParsing

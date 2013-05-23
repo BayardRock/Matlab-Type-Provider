@@ -1,5 +1,5 @@
 ﻿
-#r """..\MatlabCOMTypeProvider\bin\Debug\MatlabCOMTypeProvider.dll"""
+#r """..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Debug\MatlabTypeProvider.dll"""
 
 let x = Matlab.Vars.x
 let m = Matlab.Vars.m
