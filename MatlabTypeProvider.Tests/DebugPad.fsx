@@ -2,4 +2,3 @@
 
 open SimpleMatlab
 
-Toolboxes.``matlab\strfun``.strc

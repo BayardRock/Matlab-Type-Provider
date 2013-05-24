@@ -43,7 +43,7 @@
     <Compile Include="MatlabFunctionParsing.fs" />
     <Compile Include="InterfaceTypes.fs" />
     <Compile Include="MatlabInterface.fs" />
-    <Compile Include="MatlabCOMProvider.fs" />
+    <Compile Include="SimpleMatlabProvider.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.VisualBasic" />
