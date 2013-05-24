@@ -229,17 +229,18 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetVariableMatlabType (v: MatlabVariableInfo) = getMatlabTypeFromMatlabSig v
     member t.GetVariableDotNetType (v: MatlabVariableInfo) = getDotNetType (getMatlabTypeFromMatlabSig v)
 
-    member t.CallFunction (name: string, numout: int, namedArgs: obj [], varArgs: obj []) : obj = 
+    member t.CallFunction (name: string, numout: int, namedArgs: obj [], varArgs: obj [], hasVarArgsOut: bool) : obj = 
         let actualArgs = Array.append namedArgs varArgs
         //failwith (sprintf "%s: %A (%s) (%s) -> %i" name actualArgs (actualArgs.GetType().ToString()) (actualArgs.GetType().GetElementType().ToString()) numout)
         match proxy.Feval name numout actualArgs with 
-        | :? (obj []) as arrayRes -> 
+        | :? (obj []) as arrayRes when not hasVarArgsOut -> 
             match arrayRes |> Array.map correctFEvalResult with
             | arrayRes when arrayRes.Length = 1 -> arrayRes.[0]
             | arrayRes when arrayRes.Length <= 8 ->
                 let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
                 Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)
             | arrayRes -> arrayRes :> obj       
+        | :? (obj []) as arrayRes when hasVarArgsOut -> arrayRes |> Array.map correctFEvalResult :> obj
         | unexpected -> failwith (sprintf "Unexpected type returned from Feval: %s" (unexpected.GetType().ToString()))
 
     member t.GetVariableContents (vname: string, vtype: MatlabType) = 

@@ -41,22 +41,23 @@ module ProviderHelpers =
 
     let internal getParamsForFunctionOutputs (mlfun: MatlabFunctionInfo) = 
         let hasVarargout = match mlfun.OutParams |> List.rev with | "varargout" :: rest -> true | _ -> false
-        match mlfun.OutParams.Length with
-        | 1 when hasVarargout -> typeof<obj array>
-        | 1 -> typeof<obj>
-        | n -> 
-            let outparams =  
-                seq {
-                    for i = 0 to mlfun.OutParams.Length - 2 do
-                        yield typeof<obj>
-                    yield if hasVarargout then typeof<obj array> else typeof<obj>
-                } |> Seq.toArray
-            Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(outparams)          
+        let typ = match mlfun.OutParams.Length with
+                  | 1 when hasVarargout -> typeof<obj array>
+                  | 1 -> typeof<obj>
+                  | n -> 
+                      let outparams =  
+                          seq {
+                              for i = 0 to mlfun.OutParams.Length - 2 do
+                                  yield typeof<obj>
+                              yield if hasVarargout then typeof<obj array> else typeof<obj>
+                          } |> Seq.toArray
+                      Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(outparams)
+        typ, hasVarargout       
 
     /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
     let generateFullFunctionCallsFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
         let funcParams, hasVarargin = getParamsForFunctionInputs mlfun
-        let outputType = getParamsForFunctionOutputs mlfun
+        let outputType, hasVarargout = getParamsForFunctionOutputs mlfun
         let getXmlText () = executor.GetFunctionHelp tb mlfun        
        
         let pm = ProvidedMethod(
@@ -78,7 +79,7 @@ module ProviderHelpers =
                                         let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
                                         <@@ 
                                             //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
-                                            MatlabInterface.executor.CallFunction(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[])) 
+                                            MatlabInterface.executor.CallFunction(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm

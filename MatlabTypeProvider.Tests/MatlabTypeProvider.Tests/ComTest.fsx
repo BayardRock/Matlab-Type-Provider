@@ -163,3 +163,5 @@ let vao =
         for func in exec.GetPackageFunctions(pkg) do
             yield func ]
     |> Seq.filter (fun f -> f.OutArgs |> List.exists (fun oa -> oa = "varargout"))
+
+vao |> Seq.take 1

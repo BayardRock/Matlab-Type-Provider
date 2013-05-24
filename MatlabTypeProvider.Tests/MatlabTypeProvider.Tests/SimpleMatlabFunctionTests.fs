@@ -21,7 +21,10 @@ let ``function calls with varargsin should work correctly`` () =
     Assert.Equal<string>("onetwothree", res :?> string)
 
 [<Fact>]
-let ``function calls with varargsout should work correctly`` () = ()
+let ``function calls with varargsout should work correctly`` () = 
+    let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|])
+    Assert.Equal<double>(1.0, res :?> double )
+
    
 [<Fact>]
 let ``function calls with internally defined functions should work correctly`` () = ()
