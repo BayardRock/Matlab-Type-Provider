@@ -1,6 +1,6 @@
 ﻿#r """..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Debug\MatlabTypeProvider.dll"""
 
-open FSMatlab.COMInterface
+open FSMatlab.Interface
 
 let proxy = new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")
 let exec = new MatlabCommandExecutor(proxy)
@@ -104,7 +104,26 @@ proxy.Feval "sub2ind" 1 [|size, 1, 1|]
 //
 // Varargin Playground
 //
-proxy.Feval "strcat" 1 [|"jello"; " world"; " yo"|]
+let res = proxy.Feval "strcat" 1 [|"jello"; " world"; " yo"|]
+let res = proxy.Feval "strcat" 1 [|"one"; "two"; "three"; "four"|]
+MatlabCallHelpers.correctFEvalResult res
+let fixFeval (res: obj) = 
+        match res with 
+        | :? (obj []) as arrayRes -> 
+            match arrayRes |> Array.map (MatlabCallHelpers.correctFEvalResult) with
+            | arrayRes when arrayRes.Length = 1 -> arrayRes.[0]
+            | arrayRes when arrayRes.Length <= 8 ->
+                let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
+                Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)
+            | arrayRes -> arrayRes :> obj       
+        | unexpected -> failwith (sprintf "Unexpected type returned from Feval: %s" (unexpected.GetType().ToString()))
+fixFeval res
+
+
+(res :?> (obj [])).Length
+res.GetType().ToString()
+res.GetType().GetElementType().ToString()
+
 
 let dims = [|2.0; 2.0|]
 let indices = [|1.0;2.0;3.0;4.0;5.0;6.0;7.0;8.0|]

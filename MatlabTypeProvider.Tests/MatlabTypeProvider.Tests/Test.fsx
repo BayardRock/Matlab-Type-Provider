@@ -1,24 +1,26 @@
 ﻿
 #r """..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Debug\MatlabTypeProvider.dll"""
 
-let x = Matlab.Vars.x
-let m = Matlab.Vars.m
-let v = Matlab.Vars.v
-let v2 = Matlab.Vars.v2
+open SimpleMatlab
+
+let x = Vars.x
+let m = Vars.m
+let v = Vars.v
+let v2 = Vars.v2
 
 // Simple types
-Matlab.Vars.matrix
-Matlab.Vars.vector
-Matlab.Vars.vectorT
+Vars.matrix
+Vars.vector
+Vars.vectorT
 
 // Standard Function Call
-let x = Matlab.Toolboxes.``matlab\elfun``.nthroot(2.0, 1.0)
+let x = Toolboxes.``matlab\elfun``.nthroot(2.0, 1.0)
 
 // Complex Types
-Matlab.Vars.imag_matrix
-Matlab.Vars.imag_vector
-Matlab.Vars.imag_vectorT
-Matlab.Vars.imag_single
+Vars.imag_matrix
+Vars.imag_vector
+Vars.imag_vectorT
+Vars.imag_single
 
 // Varargin Function Call
 

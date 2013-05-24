@@ -16,7 +16,9 @@ let ``function calls with arrays should execute and return a single correct answ
     Assert.Equal<double []>([|3.0; 7.0|], res :?> double [])
 
 [<Fact>]
-let ``function calls with varargsin should work correctly`` () = ()
+let ``function calls with varargsin should work correctly`` () = 
+    let res = Toolboxes.``matlab\strfun``.strcat([|"one"; "two"; "three"|])
+    Assert.Equal<string>("onetwothree", res :?> string)
 
 [<Fact>]
 let ``function calls with varargsout should work correctly`` () = ()

@@ -1,0 +1,1 @@
+devenv.exe /debugexe fsc.exe -r:..\MatlabTypeProvider\MatlabTypeProvsider\bin\Debug\MatlabTypeProvider.dll DebugPad.fsx
