@@ -25,18 +25,20 @@ let ``function calls with varargsout should work correctly`` () =
     let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|])
     Assert.Equal<double>(1.0, res :?> double )
 
-   
 [<Fact>]
-let ``function calls with internally defined functions should work correctly`` () = ()
+let ``function calls that expect a matrix should work correctly`` () = 
+    let res = Toolboxes.``matlab\matfun``.trace(Array2D.create 5 5 1)
+    Assert.Equal<double>(5.0, res :?> double)
 
 [<Fact>]
-let ``function calls that expect a vector should work correctly`` () = ()
+let ``function calls that return a vector should work correctly`` () =
+    let testVal = [|0.0; 0.0; 0.0|]
+    let [| res |] = Toolboxes.``matlab\elfun``.cos([| testVal |])
+    Assert.Equal<double []>([|1.0; 1.0; 1.0|], res :?> (double[]) )
 
 [<Fact>]
-let ``function calls that expect a matrix should work correctly`` () = ()
-
-[<Fact>]
-let ``function calls that return a vector should work correctly`` () = ()
-
-[<Fact>]
-let ``function calls that return a matrix should work correctly`` () = ()
+let ``function calls that return a matrix should work correctly`` () =
+    let testVal = Array2D.create 5 5 0.0
+    let expectedVal = Array2D.create 5 5 1.0
+    let [| res |] = Toolboxes.``matlab\elfun``.cos([|testVal :> obj|])
+    Assert.Equal<double [,]>(expectedVal, res :?> (double[,]) )
