@@ -1,6 +1,6 @@
 ﻿module Matlab.TypeProvider.Parser.Tests
 
-open Parsing
+open ParsingHelpers
 open FSMatlab.FunctionParsing
 
 open Xunit

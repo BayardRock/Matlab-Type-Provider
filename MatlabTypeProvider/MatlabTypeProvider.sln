@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MatlabCOMTypeProvider", "MatlabTypeProvider\MatlabCOMTypeProvider.fsproj", "{23FC6DC2-EEC7-4501-9546-1C285726E1AD}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MatlabTypeProvider", "MatlabTypeProvider\MatlabTypeProvider.fsproj", "{23FC6DC2-EEC7-4501-9546-1C285726E1AD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

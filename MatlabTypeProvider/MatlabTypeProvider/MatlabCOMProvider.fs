@@ -9,7 +9,8 @@ open ProviderImplementation.ProvidedTypes
 open Microsoft.FSharp.Core.CompilerServices
 open Microsoft.FSharp.Quotations
 
-open FSMatlab.COMInterface
+open FSMatlab.InterfaceTypes
+open FSMatlab.Interface
 
 module MatlabInterface =    
     let executor = MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
@@ -24,12 +25,12 @@ module ProviderHelpers =
                                 propertyName = var.Name, 
                                 propertyType = executor.GetVariableDotNetType(var), 
                                 IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents name mltype @@>)
+                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, mltype) @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
             ]
 
-    let internal getParamsForFunctionInputs (mlfun: MatlabFunction) =
+    let internal getParamsForFunctionInputs (mlfun: MatlabFunctionInfo) =
         let hasVarargin = match mlfun.InParams |> List.rev with | "varargin" :: rest -> true | _ -> false
         [                     
             for p in mlfun.InParams do
@@ -38,7 +39,7 @@ module ProviderHelpers =
                 else yield ProvidedParameter(p, typeof<obj>, optionalValue=null) 
         ], hasVarargin
 
-    let internal getParamsForFunctionOutputs (mlfun: MatlabFunction) = 
+    let internal getParamsForFunctionOutputs (mlfun: MatlabFunctionInfo) = 
         let hasVarargout = match mlfun.OutParams |> List.rev with | "varargout" :: rest -> true | _ -> false
         match mlfun.OutParams.Length with
         | 1 when hasVarargout -> typeof<obj array>, true
@@ -53,7 +54,7 @@ module ProviderHelpers =
             Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(outparams), hasVarargout            
 
     /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
-    let generateFullFunctionCallFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolbox) (mlfun: MatlabFunction) =
+    let generateFullFunctionCallFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
         let funcParams, hasVarargin = getParamsForFunctionInputs mlfun
         let outputType, hasVarargout = getParamsForFunctionOutputs mlfun
         let getXmlText () = executor.GetFunctionHelp tb mlfun        
@@ -72,9 +73,9 @@ module ProviderHelpers =
         pm
 
 [<TypeProvider>]
-type MatlabCOMProvider (config: TypeProviderConfig) as this = 
+type SimpleMatlabProvider (config: TypeProviderConfig) as this = 
     inherit TypeProviderForNamespaces()
-    let rootNamespace = "Matlab"
+    let rootNamespace = "SimpleMatlab"
     let thisAssembly  = Assembly.GetExecutingAssembly()
 
     let mlKind = "Matlab.Desktop.Application"
@@ -126,31 +127,31 @@ type MatlabCOMProvider (config: TypeProviderConfig) as this =
     // Packages   
     // Note: Currently Very Experimental, and not very useful
     //
-    let packages = executor.GetPackageNames()
-    let pkgNs = rootNamespace + ".Packages"
-    do for package in packages do                 
-           let pkgTyp = ProvidedTypeDefinition(thisAssembly, pkgNs, package, Some typeof<obj>)
-           pkgTyp.AddXmlDocDelayed(fun () -> executor.GetPackageHelp(package))
-
-           pkgTyp.AddMembersDelayed(fun () -> 
-                [
-                    let pkgFuncs = executor.GetPackageFunctions(package)
-                    for pkgFunc in pkgFuncs do
-                        let funcParams = [ for p in pkgFunc.InArgs -> ProvidedParameter(pkgFunc.Name, typeof<obj>, optionalValue=null) ]
-                        let pm = ProvidedMethod(
-                                    methodName = pkgFunc.Name,
-                                    parameters = funcParams,
-                                    returnType = typeof<obj>,
-                                    IsStaticMethod = true,
-                                    InvokeCode = fun args -> 
-                                                    let name = pkgFunc.Name 
-                                                    let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
-                                                    <@@ MatlabInterface.executor.CallFunction name %%namedArgs @@>)
-                        pm.AddXmlDocDelayed(fun () -> executor.GetMethodHelp package pkgFunc.Name)
-                        yield pm
-                ]
-           )         
-           do this.AddNamespace(pkgNs,  [pkgTyp])
+//    let packages = executor.GetPackageNames()
+//    let pkgNs = rootNamespace + ".Packages"
+//    do for package in packages do                 
+//           let pkgTyp = ProvidedTypeDefinition(thisAssembly, pkgNs, package, Some typeof<obj>)
+//           pkgTyp.AddXmlDocDelayed(fun () -> executor.GetPackageHelp(package))
+//
+//           pkgTyp.AddMembersDelayed(fun () -> 
+//                [
+//                    let pkgFuncs = executor.GetPackageFunctions(package)
+//                    for pkgFunc in pkgFuncs do
+//                        let funcParams = [ for p in pkgFunc.InArgs -> ProvidedParameter(pkgFunc.Name, typeof<obj>, optionalValue=null) ]
+//                        let pm = ProvidedMethod(
+//                                    methodName = pkgFunc.Name,
+//                                    parameters = funcParams,
+//                                    returnType = typeof<obj>,
+//                                    IsStaticMethod = true,
+//                                    InvokeCode = fun args -> 
+//                                                    let name = pkgFunc.Name 
+//                                                    let namedArgs = Quotations.Expr.NewArray(typeof<obj>, args)
+//                                                    <@@ MatlabInterface.executor.CallFunction name %%namedArgs @@>)
+//                        pm.AddXmlDocDelayed(fun () -> executor.GetMethodHelp package pkgFunc.Name)
+//                        yield pm
+//                ]
+//           )         
+//           do this.AddNamespace(pkgNs,  [pkgTyp])
 
 
 

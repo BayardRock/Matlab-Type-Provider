@@ -1,6 +1,6 @@
 ﻿module FSMatlab.FunctionParsing
 
-open Parsing
+open ParsingHelpers
 open System
 
 let matlabTokenize = lazyTokenizeStringWindow [|"["; "]"; "="; "("; ")"; ","; "%{"; "%}"; "%"; "..."; "\n"|] [|' '; '\r'|]
