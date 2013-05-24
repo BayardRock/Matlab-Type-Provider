@@ -11,7 +11,7 @@ module MatlabFunctionHelpers =
         seq {                                         
             for file in Directory.EnumerateFiles(searchPath, "*.m") do
                 let fullPath = Path.Combine(searchPath, file)
-                let genEmptyFunc () = { Name = Path.GetFileNameWithoutExtension(file) ; InParams = [ "varargsin" ] ; OutParams = [ "varargsout" ] ; Path = fullPath }
+                let genEmptyFunc () = { Name = Path.GetFileNameWithoutExtension(file) ; InParams = [ "varargin" ] ; OutParams = [ "varargout" ] ; Path = fullPath }
                 let mlFunc = 
                     try 
                         match StringWindow(File.ReadAllText(fullPath), 0u) |> findFunc |> Option.map (parseFunDecl) with

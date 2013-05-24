@@ -153,3 +153,13 @@ arr.GetLength(0)
 
 
 correctFEvalResult res.[0]
+
+//
+// Queries
+//
+
+let vao = 
+    [ for pkg in exec.GetPackageNames() do
+        for func in exec.GetPackageFunctions(pkg) do
+            yield func ]
+    |> Seq.filter (fun f -> f.OutArgs |> List.exists (fun oa -> oa = "varargout"))
