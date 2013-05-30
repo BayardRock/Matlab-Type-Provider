@@ -20,10 +20,10 @@ module ProviderHelpers =
     let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
             [
                 for var in executor.GetVariableInfos() do
-                    let mltype = executor.GetVariableMatlabType(var)
+                    let mltype = TypeConverters.getMatlabTypeFromMatlabSig(var)
                     let p = ProvidedProperty(
                                 propertyName = var.Name, 
-                                propertyType = executor.GetVariableDotNetType(var), 
+                                propertyType = TypeConverters.getDotNetType(mltype), 
                                 IsStatic = true,
                                 GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, mltype) @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
@@ -79,7 +79,7 @@ module ProviderHelpers =
                                         let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
                                         <@@ 
                                             //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
-                                            MatlabInterface.executor.CallFunction(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
+                                            MatlabInterface.executor.CallFunctionWithValues(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm

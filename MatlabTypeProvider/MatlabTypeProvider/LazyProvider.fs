@@ -15,7 +15,7 @@ open FSMatlab.Interface
 [<TypeProvider>]
 type LazyMatlabProvider (config: TypeProviderConfig) as this = 
     inherit TypeProviderForNamespaces()
-    let rootNamespace = "SimpleMatlab"
+    let rootNamespace = "LazyMatlab"
     let thisAssembly  = Assembly.GetExecutingAssembly()
 
     let mlKind = "Matlab.Desktop.Application"

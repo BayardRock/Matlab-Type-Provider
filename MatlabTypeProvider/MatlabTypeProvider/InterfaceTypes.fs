@@ -41,3 +41,23 @@ type MatlabToolboxInfo = {
         HelpName: string option
         Funcs: MatlabFunctionInfo seq
     }
+
+type IMatlabVariableHandle = 
+    abstract member Name : string
+    abstract member Get : unit -> 'a
+    abstract member GetUntyped : unit -> obj
+    abstract member Info: MatlabVariableInfo
+    abstract member MatlabType : MatlabType
+    abstract member LocalType: Type
+
+type IMatlabFunctionHandle = 
+    abstract member Name : string
+    /// Array can contain a mix of translatable values and variable handles
+    abstract member Apply : obj [] -> IMatlabAppliedFunctionHandle
+    abstract member Info : MatlabFunctionInfo
+
+and IMatlabAppliedFunctionHandle =
+    abstract member Name : string
+    /// Takes a number of output values and returns handles to outputs
+    abstract member Execute : int -> IMatlabVariableHandle []
+    abstract member Info : MatlabFunctionInfo

@@ -46,6 +46,7 @@ module MatlabCOM =
 
             do mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod, null, ml, prms, [|prmsMod|], null, null) |> ignore
             prms.[2]
+
     
         /// Read a char array from matlab as a string
         member t.GetCharArray (var: string) = mtyp.InvokeMember("GetCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) :?> string

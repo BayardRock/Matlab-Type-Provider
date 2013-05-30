@@ -2,16 +2,13 @@
 
 open FSMatlab.InterfaceTypes
 
-type MTPFunctionHandle = 
-    {
-        Name: string
-        Varargin: bool
-        Varargout: bool
-        InArgs: obj []
-    }
+module LazyProviderTypeHelpers =
+    let processId = lazy System.Diagnostics.Process.GetCurrentProcess().Id.ToString()
 
-type MTPVariableHandle = 
-    {
-        Name: string
-        Info: MatlabVariableInfo
-    }
+    let getRandomVariableName () = 
+        let procid = processId.Force()
+        let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
+        System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
+
+
+
