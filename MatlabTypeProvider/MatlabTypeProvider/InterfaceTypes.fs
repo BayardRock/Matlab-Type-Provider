@@ -41,17 +41,3 @@ type MatlabToolboxInfo = {
         HelpName: string option
         Funcs: MatlabFunctionInfo seq
     }
-
-type MTPFunctionHandle = 
-    {
-        Name: string
-        Varargin: bool
-        Varargout: bool
-        InArgs: obj []
-    }
-
-type MTPVariableHandle = 
-    {
-        Name: string
-        Info: MatlabVariableInfo
-    }

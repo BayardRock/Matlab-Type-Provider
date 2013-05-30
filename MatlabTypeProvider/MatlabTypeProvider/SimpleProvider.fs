@@ -1,14 +1,14 @@
-﻿namespace FSMatlab.COMTypeProvider
+﻿namespace FSMatlab
 
 open System
 open System.Reflection
 open System.Diagnostics
 open System.Threading
 open System.Collections.Generic
-open ProviderImplementation.ProvidedTypes
 open Microsoft.FSharp.Core.CompilerServices
 open Microsoft.FSharp.Quotations
 
+open Samples.FSharp.ProvidedTypes
 open FSMatlab.InterfaceTypes
 open FSMatlab.Interface
 
