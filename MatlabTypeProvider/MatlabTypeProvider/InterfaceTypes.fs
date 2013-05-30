@@ -58,6 +58,6 @@ type IMatlabFunctionHandle =
 
 and IMatlabAppliedFunctionHandle =
     abstract member Name : string
-    /// Takes a number of output values and returns handles to outputs
-    abstract member Execute : int -> IMatlabVariableHandle []
+    /// Takes an array of output variable names and returns handles to outputs
+    abstract member Execute : string [] -> IMatlabVariableHandle []
     abstract member Info : MatlabFunctionInfo

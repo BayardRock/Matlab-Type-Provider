@@ -165,3 +165,17 @@ let vao =
     |> Seq.filter (fun f -> f.OutArgs |> List.exists (fun oa -> oa = "varargout"))
 
 vao |> Seq.take 1
+
+//
+// Feval with server variables
+//
+
+proxy.PutCharArray "name" "The Dude"
+proxy.Feval "strcat" 1 [|"My Name is:"; "name="|]
+
+
+//
+// Can we bind the result of an feval?
+//
+let mutable outvar = "outname=" :> obj
+proxy.FevalOut("strcat", 1, [|"My Name is:"; "name="|], &outvar)

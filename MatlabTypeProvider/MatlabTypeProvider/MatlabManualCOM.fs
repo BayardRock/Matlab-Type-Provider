@@ -21,9 +21,9 @@ module MatlabCOM =
 
 
         #if DEBUG
-        /// Exposed matlab type for testing and experimentation
+        /// Exposed matlab COM type for testing and experimentation (Only appears in DEBUG)
         member t.MatlabType = mtyp
-        /// Exposed matlab instance for testing and experimentation
+        /// Exposed matlab COM instance for testing and experimentation (Only appears in DEBUG)
         member t.MatlabInstance = ml
         #endif
 
@@ -47,7 +47,6 @@ module MatlabCOM =
             do mtyp.InvokeMember("Feval", Reflection.BindingFlags.InvokeMethod, null, ml, prms, [|prmsMod|], null, null) |> ignore
             prms.[2]
 
-    
         /// Read a char array from matlab as a string
         member t.GetCharArray (var: string) = mtyp.InvokeMember("GetCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"|] ) :?> string
 
@@ -83,9 +82,11 @@ module MatlabCOM =
         //
         // !!! NOTE: Put* Methods have not been tested
         //
-        member t.PutCharArray (var:string) (value:string) =  mtyp.InvokeMember("PutCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; value|] ) 
+        member t.PutCharArray (var:string) (value:string) : unit =  
+            mtyp.InvokeMember("PutCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; value|] ) 
+            |> ignore
     
-        member t.PutFullMatrix (var: string, xreal: double [,], ?ximag: double [,]) = 
+        member t.PutFullMatrix (var: string, xreal: double [,], ?ximag: double [,]) : unit = 
             let ximag : obj = 
                 match ximag with
                 | Some (arr) -> arr :> obj
@@ -95,4 +96,6 @@ module MatlabCOM =
             LateBinding.LateCall(ml, null, "PutFullMatrix", args, null, null) 
 
         /// Use PutWorkspaceData to pass numeric and character array data respectively to the server. Do not use PutWorkspaceData on sparse arrays, structures, or function handles. Use the Execute method for these data types.
-        member t.PutWorkspaceData (var: string) (data: obj) = mtyp.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, ml, [|var; "base"; data|] ) 
+        member t.PutWorkspaceData (var: string) (data: obj) : unit = 
+            mtyp.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod, null, ml, [|var; "base"; data|] ) 
+            |> ignore
