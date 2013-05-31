@@ -42,12 +42,15 @@ module MatlabCallHelpers =
     open System
     open Microsoft.Win32
 
-    let processId = lazy System.Diagnostics.Process.GetCurrentProcess().Id.ToString()
+    let processId = lazy (System.Diagnostics.Process.GetCurrentProcess().Id.ToString())
 
-    let getRandomVariableName () = 
-        let procid = processId.Force()
-        let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
-        System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
+    let getSafeRandomVariableName (currentVariables: string []) =
+        let varNames =  seq {
+                            let procid = processId.Force()
+                            let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
+                            yield System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
+                        }
+        varNames |> Seq.find (fun v -> not <| Array.exists (fun cv -> cv = v) currentVariables)
 
     let nullToOption =
         function
@@ -104,7 +107,7 @@ module MatlabCallHelpers =
 
     let correctFEvalResult (res: obj) =
         match res with
-        // Fast for Value Type Arrays
+        // Fast(ish) for Value Type Arrays
         | :? Array as arr when (arr.Rank = 2 && arr.GetLength(0) = 1 && arr.GetLength(1) > 0
                                 && arr.GetType().GetElementType().IsValueType) -> 
             let copyBytes = System.Buffer.ByteLength(arr)
@@ -269,12 +272,13 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     /// Note: Will create temporary variables with random names on the matlab side
     member t.CallFunctionWithHandles (name: string, outArgNames: string [], args: obj []) : IMatlabVariableHandle [] = 
         // Push non-handle variables to matlab, and keep track of which were pushed just for this function
+        let currentVars = lazy (t.GetVariableInfos() |> Array.map (fun vi -> vi.Name))
         let inArgs =
             [| for arg in args do 
                     yield  match arg with 
                            | :? IMatlabVariableHandle as h -> (h.Name), false
                            | o -> 
-                                let varname = getRandomVariableName () 
+                                let varname = getSafeRandomVariableName (currentVars.Force()) 
                                 t.SetVariable(varname, o) // Side Effect: Sets variables matlab side
                                 varname, true
             |]   
@@ -309,7 +313,8 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
     /// Just like the other CallFunctionWithHandles but will use randomized result value names 
     member t.CallFunctionWithHandles (name: string, numout: int, args: obj []) : IMatlabVariableHandle [] = 
-        let outargs = Array.init numout (fun _ -> getRandomVariableName ())
+        let currentVars = lazy (t.GetVariableInfos() |> Array.map (fun vi -> vi.Name))
+        let outargs = Array.init numout (fun _ -> getSafeRandomVariableName (currentVars.Force()))
         t.CallFunctionWithHandles(name, outargs, args)
  
 
