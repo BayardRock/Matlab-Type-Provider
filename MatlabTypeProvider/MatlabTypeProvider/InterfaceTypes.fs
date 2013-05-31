@@ -43,12 +43,19 @@ type MatlabToolboxInfo = {
     }
 
 type IMatlabVariableHandle = 
+    /// The name of this variable in Matlab
     abstract member Name : string
-    abstract member Get : unit -> 'a
+    /// Retrieves the contents of this variable from Matlab, statically parameterized by type
     abstract member GetUntyped : unit -> obj
+    /// Actual information on the variable as of it's state when this IMatlabVariableHandle was created
     abstract member Info: MatlabVariableInfo
+    /// An enumeration representing supported matlab types for conversion to F#
     abstract member MatlabType : MatlabType
+    /// The .net type that this variable will be converted to when gotten
     abstract member LocalType: Type
+    /// Removes this variable from matlab scope.  After this all calls which go to matlab will fail with an exception. 
+    abstract member Delete : unit -> unit
+
 
 type IMatlabFunctionHandle = 
     abstract member Name : string
@@ -58,6 +65,8 @@ type IMatlabFunctionHandle =
 
 and IMatlabAppliedFunctionHandle =
     abstract member Name : string
-    /// Takes an array of output variable names and returns handles to outputs
+    /// Executes the function specifying the given output variable names and returns handles to these outputs
     abstract member Execute : string [] -> IMatlabVariableHandle []
+    /// Executes the function specifying N outputs which will be randomly named and returned
+    abstract member Execute : int -> IMatlabVariableHandle []
     abstract member Info : MatlabFunctionInfo

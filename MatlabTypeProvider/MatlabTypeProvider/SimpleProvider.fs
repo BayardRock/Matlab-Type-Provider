@@ -13,7 +13,7 @@ open FSMatlab.InterfaceTypes
 open FSMatlab.Interface
 
 module MatlabInterface =    
-    let executor = MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
+    let executor = lazy (MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")))
 
 module SimpleProviderHelpers = 
     let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
@@ -24,7 +24,7 @@ module SimpleProviderHelpers =
                                 propertyName = var.Name, 
                                 propertyType = TypeConverters.getDotNetType(mltype), 
                                 IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, mltype) @@>)
+                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.Force().GetVariableContents(name, mltype) @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
             ]
@@ -78,7 +78,7 @@ module SimpleProviderHelpers =
                                         let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
                                         <@@ 
                                             //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
-                                            MatlabInterface.executor.CallFunctionWithValues(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
+                                            MatlabInterface.executor.Force().CallFunctionWithValues(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm

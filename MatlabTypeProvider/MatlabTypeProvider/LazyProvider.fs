@@ -37,8 +37,8 @@ module LazyProviderHelpers =
                                         let arrArgs = args.[0]
                                         <@@ 
                                             //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
-                                            let finfo =  MatlabInterface.executor.GetFunctionInfoFromFile functionPath
-                                            let fhandle = MatlabInterface.executor.ConvertFunctionInfoToFunctionHandle(finfo)
+                                            let finfo =  MatlabInterface.executor.Force().GetFunctionInfoFromFile functionPath
+                                            let fhandle = MatlabInterface.executor.Force().GetFunctionHandle(finfo)
                                             applyArgsToHandle(fhandle, (%%arrArgs: obj[]))
                                             //applyFunction (name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
                                         @@>)

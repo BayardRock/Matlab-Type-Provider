@@ -42,6 +42,7 @@
     <Compile Include="ParsingHelpers.fs" />
     <Compile Include="MatlabFunctionParsing.fs" />
     <Compile Include="InterfaceTypes.fs" />
+    <Compile Include="InterfaceTypeExtensions.fs" />
     <Compile Include="MatlabInterface.fs" />
     <Compile Include="SimpleProvider.fs" />
     <Compile Include="LazyProvider.fs" />

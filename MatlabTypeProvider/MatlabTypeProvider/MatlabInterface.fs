@@ -43,8 +43,9 @@ module MatlabFunctionHelpers =
 
 module MatlabCallHelpers = 
     open System
+    open System.Text
     open Microsoft.Win32
-
+    
     let processId = lazy (System.Diagnostics.Process.GetCurrentProcess().Id.ToString())
 
     let getSafeRandomVariableName (currentVariables: string []) =
@@ -157,6 +158,13 @@ module MatlabCallHelpers =
         if helpText.Trim() = "" then None
         else helpText |> removeHtmlTags |> addXMCDocMarkup |> Some
 
+    let commaDelm (strs: string []) = 
+        let sb = new StringBuilder()
+        for i = 0 to strs.Length - 1 do
+            sb.Append(strs.[i]) |> ignore
+            if i <> strs.Length - 1 then sb.Append(",") |> ignore
+        sb.ToString()        
+
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =
      """strjoin( transpose (...
@@ -217,24 +225,25 @@ open MatlabCallHelpers
 open MatlabCOM
 
 module RepresentationBuilders =     
-    let getVariableHandleFromVariableInfo (info: MatlabVariableInfo) (getContents: string -> MatlabType -> obj) : IMatlabVariableHandle =
+    let getVariableHandleFromVariableInfo (info: MatlabVariableInfo) (getContents: string -> MatlabType -> obj) (deleteVar: string -> unit) : IMatlabVariableHandle =
         let matlabType = TypeConverters.getMatlabTypeFromMatlabSig(info)
         { new IMatlabVariableHandle with
             member t.Name = info.Name 
-            member t.Get () = getContents info.Name matlabType :?> 'a
             member t.GetUntyped () = getContents info.Name  matlabType 
             member t.Info = info
             member t.MatlabType = matlabType
             member t.LocalType = TypeConverters.getDotNetType(matlabType)  
+            member t.Delete () = deleteVar info.Name
         }
 
-    let getFunctionHandleFromFunctionInfo (info: MatlabFunctionInfo) (execFunc: obj[] -> string[] -> IMatlabVariableHandle[]) : IMatlabFunctionHandle =
+    let getFunctionHandleFromFunctionInfo (info: MatlabFunctionInfo) (execFuncNamed: obj[] -> string[] -> IMatlabVariableHandle[]) (execFuncNum: obj[] -> int -> IMatlabVariableHandle[])  : IMatlabFunctionHandle =
         { new IMatlabFunctionHandle with
             member t.Name = info.Name
             member t.Apply (args: obj[]) = 
                 { new IMatlabAppliedFunctionHandle with
                     member t.Name = info.Name
-                    member t.Execute (outVars) = execFunc args outVars        
+                    member t.Execute (outVars: string []) = execFuncNamed args outVars        
+                    member t.Execute (numOutVars: int) = execFuncNum args numOutVars
                     member t.Info = info 
                 }
             member t.Info = info 
@@ -267,17 +276,33 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let searchPaths = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
         MatlabFunctionHelpers.toolboxesFromPaths matlabRoot searchPaths
 
-    member t.ConvertFunctionInfoToFunctionHandle (funcInfo: MatlabFunctionInfo) =
-        let fexec (inargs: obj []) (outargs: string []) = t.CallFunctionWithHandles(funcInfo.Name, outargs, inargs)
-        RepresentationBuilders.getFunctionHandleFromFunctionInfo funcInfo fexec        
+    member t.GetFunctionHandle (funcInfo: MatlabFunctionInfo) =
+        let fexecNamed (inargs: obj []) (outargs: string []) = t.CallFunctionWithHandles(funcInfo.Name, outargs, inargs)
+        let fexecNum (inargs: obj []) (out: int) = t.CallFunctionWithHandles(funcInfo.Name, out, inargs)
+        RepresentationBuilders.getFunctionHandleFromFunctionInfo funcInfo fexecNamed fexecNum
 
-    member t.GetFunctionInfoFromFile (path) = MatlabFunctionHelpers.pathToFunctionInfo path   
+    member t.GetFunctionInfoFromFile (path: string) = MatlabFunctionHelpers.pathToFunctionInfo path   
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
 
-    member t.SetVariable(name: string, value: obj) : unit =
-        // TODO: Propert Conversions
+    member t.SetVariable(name: string, value: obj) : IMatlabVariableHandle =
+        // TODO: Proper Conversions
         proxy.PutWorkspaceData name value
+        t.GetVariableHandle(name)
+
+    member t.DeleteVariable(name: string) : unit = 
+        proxy.Execute([|"clear " + name|]) |> ignore
+
+    member t.GetVariableHandle(info: MatlabVariableInfo) =
+        let getFunc name mltype = t.GetVariableContents(name, mltype)
+        let deleteFunc name = t.DeleteVariable(name)
+        RepresentationBuilders.getVariableHandleFromVariableInfo info getFunc deleteFunc       
+
+    member t.GetVariableHandle(name: string) = 
+        let argInfo = match t.GetVariableInfo(name) with
+                    | Some (name) -> name
+                    | None -> failwith (sprintf "Variable not found: %s" name)
+        t.GetVariableHandle(argInfo)
 
     /// Call a function with either MatlabVariableHandles or Objs, Returns a handle
     /// Note: Will create temporary variables with random names on the matlab side
@@ -295,12 +320,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             |]   
 
         // Generate call text
-        let commaDelm (strs: string []) = 
-            let sb = new StringBuilder()
-            for i = 0 to strs.Length - 1 do
-                sb.Append(strs.[i]) |> ignore
-                if i <> strs.Length - 1 then sb.Append(",") |> ignore
-            sb.ToString()                      
+              
         let formattedOutArgs = commaDelm outArgNames
         let formattedInArgs = commaDelm (inArgs |> Array.map fst)
         let formattedCall = String.Format("[{0}] = {1}({2})", formattedOutArgs, name, formattedInArgs)
@@ -314,13 +334,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             if deleteMe then proxy.Execute([|String.Format("clear {0}", arg)|]) |> ignore
 
         // Build result handles
-        [|
-            for outArgName in outArgNames do
-                let argInfo = match t.GetVariableInfo(outArgName) with
-                              | Some (name) -> name
-                              | None -> failwith (sprintf "Variable not found: %s" outArgName)             
-                yield RepresentationBuilders.getVariableHandleFromVariableInfo argInfo (fun name mltype -> t.GetVariableContents(name, mltype))
-        |]
+        [| for outArgName in outArgNames do yield t.GetVariableHandle(outArgName) |]
 
     /// Just like the other CallFunctionWithHandles but will use randomized result value names 
     member t.CallFunctionWithHandles (name: string, numout: int, args: obj []) : IMatlabVariableHandle [] = 
