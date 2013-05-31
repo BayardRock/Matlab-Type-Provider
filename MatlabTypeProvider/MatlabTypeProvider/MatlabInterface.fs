@@ -7,18 +7,21 @@ module MatlabFunctionHelpers =
     open ParsingHelpers
     open FSMatlab.FunctionParsing
 
+    let pathToFunctionInfo (fullPath: string) : MatlabFunctionInfo =
+        let genEmptyFunc () = { Name = Path.GetFileNameWithoutExtension(fullPath) ; InParams = [ "varargin" ] ; OutParams = [ "varargout" ] ; Path = fullPath }
+        let mlFunc = 
+            try 
+                match StringWindow(File.ReadAllText(fullPath), 0u) |> findFunc |> Option.map (parseFunDecl) with
+                | Some (name, inparams, outparams) -> { Name = name; InParams = inparams; OutParams = outparams; Path = fullPath }
+                | None -> genEmptyFunc ()
+            with ex -> genEmptyFunc ()
+        mlFunc
+
     let searchPathForFunctions (searchPath: string) : MatlabFunctionInfo seq =
         seq {                                         
             for file in Directory.EnumerateFiles(searchPath, "*.m") do
                 let fullPath = Path.Combine(searchPath, file)
-                let genEmptyFunc () = { Name = Path.GetFileNameWithoutExtension(file) ; InParams = [ "varargin" ] ; OutParams = [ "varargout" ] ; Path = fullPath }
-                let mlFunc = 
-                    try 
-                        match StringWindow(File.ReadAllText(fullPath), 0u) |> findFunc |> Option.map (parseFunDecl) with
-                        | Some (name, inparams, outparams) -> { Name = name; InParams = inparams; OutParams = outparams; Path = fullPath }
-                        | None -> genEmptyFunc ()
-                    with ex -> genEmptyFunc ()
-                yield mlFunc
+                yield pathToFunctionInfo fullPath
         }        
 
     let toolboxesFromPaths (matlabPath: string) (searchPaths: string seq) = 
@@ -124,7 +127,7 @@ module MatlabCallHelpers =
         let badPkgs = [| "MS"; "Microsoft"; "System" |]
         pkgs |> List.filter (fun p -> (badPkgs |> Array.forall (fun bp -> not <| p.StartsWith(bp))))
 
-    let tsvToFuncitonInfo (tsv: string) = 
+    let tsvToMethodInfo (tsv: string) = 
         try
             [
                 for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
@@ -167,7 +170,6 @@ module MatlabStrings =
                 ), '\r')"""
     let getHelpString (topic: string) =
         """disp(help('""" + topic + """'))"""
-
 
 
 
@@ -239,8 +241,6 @@ module RepresentationBuilders =
         }
 
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
-    member t.GetFunctionSearchPaths () = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
-    member t.GetRoot () = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
 
     member t.GetPackageHelp (pkgName: string) = 
         match proxy.Execute [|MatlabStrings.getHelpString pkgName|] :?> string |> parseHelp pkgName with
@@ -259,8 +259,19 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
     member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
                                  :?> string |> parsePackages |> filterPackages
-    member t.GetPackageFunctions (pkgName: string) = proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToFuncitonInfo
 
+    member t.GetPackageMethods (pkgName: string) = proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToMethodInfo
+
+    member t.GetToolboxes () = 
+        let matlabRoot = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
+        let searchPaths = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
+        MatlabFunctionHelpers.toolboxesFromPaths matlabRoot searchPaths
+
+    member t.ConvertFunctionInfoToFunctionHandle (funcInfo: MatlabFunctionInfo) =
+        let fexec (inargs: obj []) (outargs: string []) = t.CallFunctionWithHandles(funcInfo.Name, outargs, inargs)
+        RepresentationBuilders.getFunctionHandleFromFunctionInfo funcInfo fexec        
+
+    member t.GetFunctionInfoFromFile (path) = MatlabFunctionHelpers.pathToFunctionInfo path   
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
 
@@ -316,7 +327,6 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let currentVars = lazy (t.GetVariableInfos() |> Array.map (fun vi -> vi.Name))
         let outargs = Array.init numout (fun _ -> getSafeRandomVariableName (currentVars.Force()))
         t.CallFunctionWithHandles(name, outargs, args)
- 
 
     /// Old style, will transform output appropriately but no handles allowed 
     member t.CallFunctionWithValues (name: string, numout: int, namedArgs: obj [], varArgs: obj [], hasVarArgsOut: bool) : obj = 

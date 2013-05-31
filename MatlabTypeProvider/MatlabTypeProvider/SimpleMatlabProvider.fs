@@ -1,28 +1,29 @@
-﻿namespace FSMatlab
+﻿namespace FSMatlab.SimpleTypeProvider
 
 open System
 open System.Reflection
 open System.Diagnostics
 open System.Threading
 open System.Collections.Generic
+open ProviderImplementation.ProvidedTypes
 open Microsoft.FSharp.Core.CompilerServices
 open Microsoft.FSharp.Quotations
 
-open Samples.FSharp.ProvidedTypes
 open FSMatlab.InterfaceTypes
 open FSMatlab.Interface
 
 module MatlabInterface =    
     let executor = MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
 
-module SimpleProviderHelpers = 
+
+module ProviderHelpers = 
     let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
             [
                 for var in executor.GetVariableInfos() do
-                    let mltype = TypeConverters.getMatlabTypeFromMatlabSig(var)
+                    let mltype = executor.GetVariableMatlabType(var)
                     let p = ProvidedProperty(
                                 propertyName = var.Name, 
-                                propertyType = TypeConverters.getDotNetType(mltype), 
+                                propertyType = executor.GetVariableDotNetType(var), 
                                 IsStatic = true,
                                 GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, mltype) @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
@@ -54,34 +55,45 @@ module SimpleProviderHelpers =
         typ, hasVarargout       
 
     /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
-    let generateFullFunctionCallsFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
+    let generateFullFunctionCallsFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) : MemberInfo seq =
         let funcParams, hasVarargin = getParamsForFunctionInputs mlfun
         let outputType, hasVarargout = getParamsForFunctionOutputs mlfun
         let getXmlText () = executor.GetFunctionHelp tb mlfun        
-       
-        let pm = ProvidedMethod(
-                        methodName = mlfun.Name,
-                        parameters = funcParams,
-                        returnType = outputType,
-                        IsStaticMethod = true,
-                        InvokeCode = fun args -> 
-                                        let name = mlfun.Name 
-                                        let numout = mlfun.OutParams.Length    
-                                        let arrArgs = args |> List.toArray
-                                        let castValues = 
-                                            let stopIdx = if hasVarargin then arrArgs.Length - 2 else arrArgs.Length - 1
-                                            [ for expr in arrArgs.[0 .. stopIdx] do yield Quotations.Expr.Coerce(expr, typeof<obj>) ] 
+        seq {
+            let pm = ProvidedMethod(
+                            methodName = mlfun.Name,
+                            parameters = funcParams,
+                            returnType = outputType,
+                            IsStaticMethod = true,
+                            InvokeCode = fun args -> 
+                                            let name = mlfun.Name 
+                                            let numout = mlfun.OutParams.Length    
+                                            let arrArgs = args |> List.toArray
+                                            let castValues = 
+                                                let stopIdx = if hasVarargin then arrArgs.Length - 2 else arrArgs.Length - 1
+                                                [ for expr in arrArgs.[0 .. stopIdx] do yield Quotations.Expr.Coerce(expr, typeof<obj>) ] 
 
-                                        let varInArgs = 
-                                            if hasVarargin then arrArgs.[arrArgs.Length - 1] else Quotations.Expr.NewArray(typeof<obj>, [])
+                                            let varInArgs = 
+                                                if hasVarargin then arrArgs.[arrArgs.Length - 1] else Quotations.Expr.NewArray(typeof<obj>, [])
 
-                                        let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
-                                        <@@ 
-                                            //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
-                                            MatlabInterface.executor.CallFunctionWithValues(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
-                                        @@>)
-        pm.AddXmlDocDelayed(fun () -> getXmlText ())
-        pm
+                                            let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
+                                            <@@ 
+                                                //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
+                                                MatlabInterface.executor.CallFunction(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
+                                            @@>)
+            pm.AddXmlDocDelayed(fun () -> getXmlText ())
+            yield pm :> MemberInfo
+
+            #if DEBUG
+            // Here to for debugging xmldoc errors
+            yield ProvidedProperty(
+                        propertyName = mlfun.Name + "_XMLDOC", 
+                        propertyType = typeof<string>, 
+                        IsStatic = true, 
+                        GetterCode = let text = getXmlText () in fun args -> <@@ text @@> ) :> MemberInfo
+
+            #endif
+        }
         
 
 [<TypeProvider>]
@@ -98,7 +110,7 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
     // Base Variables
     //
     let pty = ProvidedTypeDefinition(thisAssembly,rootNamespace,"Vars", Some(typeof<obj>))
-    do pty.AddMembersDelayed(fun () -> SimpleProviderHelpers.generateTypesForMatlabVariables executor)
+    do pty.AddMembersDelayed(fun () -> ProviderHelpers.generateTypesForMatlabVariables executor)
     do pty.AddXmlDoc("This contains all variables which are bound when the type provider is loaded")
     do this.AddNamespace(rootNamespace,  [pty])
 
@@ -108,7 +120,9 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
     let fty = ProvidedTypeDefinition(thisAssembly, rootNamespace, "Toolboxes", Some(typeof<obj>))
     do fty.AddMembersDelayed(fun () -> 
         [
-            let toolboxes = executor.GetToolboxes()
+            let searchPaths = executor.GetFunctionSearchPaths()
+            let matlabRoot = executor.GetRoot()
+            let toolboxes = MatlabFunctionHelpers.toolboxesFromPaths matlabRoot searchPaths
             for tb in toolboxes do
                 let tbType = ProvidedTypeDefinition(tb.Name, Some(typeof<obj>))
                 let getTBXML () = executor.GetToolboxHelp tb                
@@ -124,7 +138,8 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
                         #endif
                             
                         for func in tb.Funcs do
-                            yield SimpleProviderHelpers.generateFullFunctionCallsFromDescription executor tb func :> MemberInfo
+                            yield! ProviderHelpers.generateFullFunctionCallsFromDescription executor tb func 
+                                   |> Seq.cast<MemberInfo>
                     ])
                 tbType.AddXmlDocDelayed(fun () -> getTBXML ())
                 yield tbType
