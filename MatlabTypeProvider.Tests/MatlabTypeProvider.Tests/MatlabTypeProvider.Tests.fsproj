@@ -38,6 +38,7 @@
   <ItemGroup>
     <Compile Include="ParserTests.fs" />
     <Compile Include="SimpleMatlabFunctionTests.fs" />
+    <Compile Include="LazyMatlabFunctionTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="MatlabTypeProvider">
