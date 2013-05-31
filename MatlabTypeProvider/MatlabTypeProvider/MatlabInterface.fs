@@ -38,11 +38,16 @@ module MatlabFunctionHelpers =
                 yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = searchPathForFunctions searchPath |> Seq.cache }
         }
 
-
-
 module MatlabCallHelpers = 
     open System
     open Microsoft.Win32
+
+    let processId = lazy System.Diagnostics.Process.GetCurrentProcess().Id.ToString()
+
+    let getRandomVariableName () = 
+        let procid = processId.Force()
+        let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
+        System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
 
     let nullToOption =
         function
@@ -96,39 +101,6 @@ module MatlabCallHelpers =
                 }
         |]
 
-    let getMatlabTypeFromMatlabSig =
-        function
-        | { Size = [1; _]; Class = "char"   }                            -> MatlabType.MString
-        | { Size = [1; 1]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexDouble
-        | { Size = [1; 1]; Class = "double" }                            -> MatlabType.MDouble
-        | { Size = [1; _]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexVector
-        | { Size = [1; _]; Class = "double" }                            -> MatlabType.MVector
-        | { Size = [_; _]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexMatrix
-        | { Size = [_; _]; Class = "double" }                            -> MatlabType.MMatrix
-        | _ -> MatlabType.MUnexpected
-
-    let getMatlabTypeFromDotNetSig =
-        function
-        | t when t = typeof<string> -> MatlabType.MString
-        | t when t = typeof<double> -> MatlabType.MDouble
-        | t when t = typeof<double []> -> MatlabType.MVector
-        | t when t = typeof<double [,]> -> MatlabType.MMatrix
-        | t when t = typeof<System.Numerics.Complex> -> MatlabType.MComplexDouble
-        | t when t = typeof<System.Numerics.Complex []> -> MatlabType.MComplexVector
-        | t when t = typeof<System.Numerics.Complex [,]> -> MatlabType.MComplexMatrix 
-        | t -> failwith (sprintf "Unsupported Variable Type: %s" (t.ToString()))
-
-    let getDotNetType = 
-        function
-        | MatlabType.MString            -> typeof<string>
-        | MatlabType.MDouble            -> typeof<double>
-        | MatlabType.MVector            -> typeof<double []>        
-        | MatlabType.MMatrix            -> typeof<double [,]> 
-        | MatlabType.MComplexDouble     -> typeof<System.Numerics.Complex>
-        | MatlabType.MComplexVector     -> typeof<System.Numerics.Complex []>
-        | MatlabType.MComplexMatrix     -> typeof<System.Numerics.Complex [,]>      
-        | MatlabType.MUnexpected -> failwith (sprintf "Unsupported Variable Type")
-        | _ -> failwith "Unexpected MatlabTypes enumeration value"
 
     let correctFEvalResult (res: obj) =
         match res with
@@ -193,12 +165,75 @@ module MatlabStrings =
     let getHelpString (topic: string) =
         """disp(help('""" + topic + """'))"""
 
+
+
+
+module TypeConverters =
+    let getMatlabTypeFromMatlabSig =
+        function
+        | { Size = [1; _]; Class = "char"   }                            -> MatlabType.MString
+        | { Size = [1; 1]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexDouble
+        | { Size = [1; 1]; Class = "double" }                            -> MatlabType.MDouble
+        | { Size = [1; _]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexVector
+        | { Size = [1; _]; Class = "double" }                            -> MatlabType.MVector
+        | { Size = [_; _]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexMatrix
+        | { Size = [_; _]; Class = "double" }                            -> MatlabType.MMatrix
+        | _ -> MatlabType.MUnexpected
+
+    let getMatlabTypeFromDotNetSig =
+        function
+        | t when t = typeof<string> -> MatlabType.MString
+        | t when t = typeof<double> -> MatlabType.MDouble
+        | t when t = typeof<double []> -> MatlabType.MVector
+        | t when t = typeof<double [,]> -> MatlabType.MMatrix
+        | t when t = typeof<System.Numerics.Complex> -> MatlabType.MComplexDouble
+        | t when t = typeof<System.Numerics.Complex []> -> MatlabType.MComplexVector
+        | t when t = typeof<System.Numerics.Complex [,]> -> MatlabType.MComplexMatrix 
+        | t -> failwith (sprintf "Unsupported Variable Type: %s" (t.ToString()))
+
+    let getDotNetType = 
+        function
+        | MatlabType.MString            -> typeof<string>
+        | MatlabType.MDouble            -> typeof<double>
+        | MatlabType.MVector            -> typeof<double []>        
+        | MatlabType.MMatrix            -> typeof<double [,]> 
+        | MatlabType.MComplexDouble     -> typeof<System.Numerics.Complex>
+        | MatlabType.MComplexVector     -> typeof<System.Numerics.Complex []>
+        | MatlabType.MComplexMatrix     -> typeof<System.Numerics.Complex [,]>      
+        | MatlabType.MUnexpected -> failwith (sprintf "Unsupported Variable Type")
+        | _ -> failwith "Unexpected MatlabTypes enumeration value"
+
 open System
 open System.Reflection
 open System.Numerics
+open System.Text
 
 open MatlabCallHelpers
 open MatlabCOM
+
+module RepresentationBuilders =     
+    let getVariableHandleFromVariableInfo (info: MatlabVariableInfo) (getContents: string -> MatlabType -> obj) : IMatlabVariableHandle =
+        let matlabType = TypeConverters.getMatlabTypeFromMatlabSig(info)
+        { new IMatlabVariableHandle with
+            member t.Name = info.Name 
+            member t.Get () = getContents info.Name matlabType :?> 'a
+            member t.GetUntyped () = getContents info.Name  matlabType 
+            member t.Info = info
+            member t.MatlabType = matlabType
+            member t.LocalType = TypeConverters.getDotNetType(matlabType)  
+        }
+
+    let getFunctionHandleFromFunctionInfo (info: MatlabFunctionInfo) (execFunc: obj[] -> string[] -> IMatlabVariableHandle[]) : IMatlabFunctionHandle =
+        { new IMatlabFunctionHandle with
+            member t.Name = info.Name
+            member t.Apply (args: obj[]) = 
+                { new IMatlabAppliedFunctionHandle with
+                    member t.Name = info.Name
+                    member t.Execute (outVars) = execFunc args outVars        
+                    member t.Info = info 
+                }
+            member t.Info = info 
+        }
 
 type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetFunctionSearchPaths () = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
@@ -226,10 +261,60 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
 
-    member t.GetVariableMatlabType (v: MatlabVariableInfo) = getMatlabTypeFromMatlabSig v
-    member t.GetVariableDotNetType (v: MatlabVariableInfo) = getDotNetType (getMatlabTypeFromMatlabSig v)
+    member t.SetVariable(name: string, value: obj) : unit =
+        // TODO: Propert Conversions
+        proxy.PutWorkspaceData name value
 
-    member t.CallFunction (name: string, numout: int, namedArgs: obj [], varArgs: obj [], hasVarArgsOut: bool) : obj = 
+    /// Call a function with either MatlabVariableHandles or Objs, Returns a handle
+    /// Note: Will create temporary variables with random names on the matlab side
+    member t.CallFunctionWithHandles (name: string, outArgNames: string [], args: obj []) : IMatlabVariableHandle [] = 
+        // Push non-handle variables to matlab, and keep track of which were pushed just for this function
+        let inArgs =
+            [| for arg in args do 
+                    yield  match arg with 
+                           | :? IMatlabVariableHandle as h -> (h.Name), false
+                           | o -> 
+                                let varname = getRandomVariableName () 
+                                t.SetVariable(varname, o) // Side Effect: Sets variables matlab side
+                                varname, true
+            |]   
+
+        // Generate call text
+        let commaDelm (strs: string []) = 
+            let sb = new StringBuilder()
+            for i = 0 to strs.Length - 1 do
+                sb.Append(strs.[i]) |> ignore
+                if i <> strs.Length - 1 then sb.Append(",") |> ignore
+            sb.ToString()                      
+        let formattedOutArgs = commaDelm outArgNames
+        let formattedInArgs = commaDelm (inArgs |> Array.map fst)
+        let formattedCall = String.Format("[{0}] = {1}({2})", formattedOutArgs, name, formattedInArgs)
+
+        // Make call
+        let res = proxy.Execute([|formattedCall|]) 
+        // TODO: Check res for errors (it may just throw)
+
+        // Delete inargs variables that were generated just for this call
+        for arg, deleteMe in inArgs do
+            if deleteMe then proxy.Execute([|String.Format("clear {0}", arg)|]) |> ignore
+
+        // Build result handles
+        [|
+            for outArgName in outArgNames do
+                let argInfo = match t.GetVariableInfo(outArgName) with
+                              | Some (name) -> name
+                              | None -> failwith (sprintf "Variable not found: %s" outArgName)             
+                yield RepresentationBuilders.getVariableHandleFromVariableInfo argInfo (fun name mltype -> t.GetVariableContents(name, mltype))
+        |]
+
+    /// Just like the other CallFunctionWithHandles but will use randomized result value names 
+    member t.CallFunctionWithHandles (name: string, numout: int, args: obj []) : IMatlabVariableHandle [] = 
+        let outargs = Array.init numout (fun _ -> getRandomVariableName ())
+        t.CallFunctionWithHandles(name, outargs, args)
+ 
+
+    /// Old style, will transform output appropriately but no handles allowed 
+    member t.CallFunctionWithValues (name: string, numout: int, namedArgs: obj [], varArgs: obj [], hasVarArgsOut: bool) : obj = 
         let actualArgs = Array.append namedArgs varArgs
         //failwith (sprintf "%s: %A (%s) (%s) -> %i" name actualArgs (actualArgs.GetType().ToString()) (actualArgs.GetType().GetElementType().ToString()) numout)
         match proxy.Feval name numout actualArgs with 
@@ -280,3 +365,5 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
                 carr :> obj
             | _ -> failwith (sprintf "Variable %s does not exist or is not a complex matrix" vname)         
         | _ -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" vtype)
+
+

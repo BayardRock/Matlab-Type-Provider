@@ -42,16 +42,22 @@ type MatlabToolboxInfo = {
         Funcs: MatlabFunctionInfo seq
     }
 
-type MTPFunctionHandle = 
-    {
-        Name: string
-        Varargin: bool
-        Varargout: bool
-        InArgs: obj []
-    }
+type IMatlabVariableHandle = 
+    abstract member Name : string
+    abstract member Get : unit -> 'a
+    abstract member GetUntyped : unit -> obj
+    abstract member Info: MatlabVariableInfo
+    abstract member MatlabType : MatlabType
+    abstract member LocalType: Type
 
-type MTPVariableHandle = 
-    {
-        Name: string
-        Info: MatlabVariableInfo
-    }
+type IMatlabFunctionHandle = 
+    abstract member Name : string
+    /// Array can contain a mix of translatable values and variable handles
+    abstract member Apply : obj [] -> IMatlabAppliedFunctionHandle
+    abstract member Info : MatlabFunctionInfo
+
+and IMatlabAppliedFunctionHandle =
+    abstract member Name : string
+    /// Takes an array of output variable names and returns handles to outputs
+    abstract member Execute : string [] -> IMatlabVariableHandle []
+    abstract member Info : MatlabFunctionInfo
