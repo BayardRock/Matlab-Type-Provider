@@ -27,7 +27,7 @@ type IMatlabAppliedFunctionHandle with
 // These helpers allow you to execute and split out the results easily
 //
 
-let (|E1|_|) (result: IMatlabAppliedFunctionHandle) = let [| r |] = result.Execute(1) in Some r
+let (|E1|) (result: IMatlabAppliedFunctionHandle) = let [| r |] = result.Execute(1) in r
 let (|E2|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2 |] = result.Execute(2) in (r1,r2)
 let (|E3|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3 |] = result.Execute(3) in (r1,r2,r3)
 let (|E4|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4 |] = result.Execute(4) in (r1,r2,r3,r4)

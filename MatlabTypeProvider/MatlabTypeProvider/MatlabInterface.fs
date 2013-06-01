@@ -249,27 +249,36 @@ module RepresentationBuilders =
             member t.Info = info 
         }
 
-type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
+type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
+
+    //
+    // Actual Useful Stuff
+    //
 
     member t.GetPackageHelp (pkgName: string) = 
         match proxy.Execute [|MatlabStrings.getHelpString pkgName|] :?> string |> parseHelp pkgName with
         | Some (help) -> help
         | None -> "No help available for this Package"
+ 
     member t.GetMethodHelp (pkgName: string) (funcName: string) = 
         match let helpName = pkgName + "." + funcName in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName with
         | Some (help) -> help
         | None -> "No help available for this method"
+ 
     member t.GetToolboxHelp (tb: MatlabToolboxInfo) = 
         tb.HelpName |> Option.bind (fun helpName -> proxy.Execute [| MatlabStrings.getHelpString helpName |] :?> string |> parseHelp helpName)
         |> function | Some (help) -> help | None -> "Toolbox Path: " + tb.Path + Environment.NewLine + "No help available for this toolbox"
+
     member t.GetFunctionHelp (tb: MatlabToolboxInfo) (f: MatlabFunctionInfo) =  
         tb.HelpName |> Option.bind (fun tbHelpName -> let helpName = tbHelpName + "\\" + f.Name in proxy.Execute [|MatlabStrings.getHelpString helpName|] :?> string |> parseHelp helpName)
         |> function | Some (help) -> help | None -> "Function Path: " + f.Path + Environment.NewLine + "No help available for this function"
 
-    member t.GetPackageNames() = proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
-                                 :?> string |> parsePackages |> filterPackages
+    member t.GetPackageNames() =
+         proxy.Execute [|"strjoin(cellfun(@(x) x.Name, meta.package.getAllPackages(), 'UniformOutput', false)', ';')"|] 
+         :?> string |> parsePackages |> filterPackages
 
-    member t.GetPackageMethods (pkgName: string) = proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToMethodInfo
+    member t.GetPackageMethods (pkgName: string) = 
+        proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToMethodInfo
 
     member t.GetToolboxes () = 
         let matlabRoot = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
@@ -312,17 +321,16 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let inArgs =
             [| for arg in args do 
                     yield  match arg with 
-                           | :? IMatlabVariableHandle as h -> (h.Name), false
+                           | :? IMatlabVariableHandle as h -> h, false
                            | o -> 
                                 let varname = getSafeRandomVariableName (currentVars.Force()) 
-                                t.SetVariable(varname, o) // Side Effect: Sets variables matlab side
-                                varname, true
+                                t.SetVariable(varname, o),true // Side Effect: Sets variables matlab side
             |]   
 
         // Generate call text
               
         let formattedOutArgs = commaDelm outArgNames
-        let formattedInArgs = commaDelm (inArgs |> Array.map fst)
+        let formattedInArgs = commaDelm (inArgs |> Array.map (fun (f,s) -> f.Name))
         let formattedCall = String.Format("[{0}] = {1}({2})", formattedOutArgs, name, formattedInArgs)
 
         // Make call
