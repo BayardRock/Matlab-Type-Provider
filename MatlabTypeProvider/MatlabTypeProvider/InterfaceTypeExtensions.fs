@@ -23,32 +23,81 @@ type IMatlabAppliedFunctionHandle with
         do vars |> Array.iter (fun mv -> mv.Delete())
         res
 
-//
-// These helpers allow you to execute and split out the results easily
-//
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E1 (result: IMatlabAppliedFunctionHandle) = let [| r |] = result.Execute(1) in r
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E2 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2 |] = result.Execute(2) in (r1,r2)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E3 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3 |] = result.Execute(3) in (r1,r2,r3)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E4 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4 |] = result.Execute(4) in (r1,r2,r3,r4)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E5 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5 |] = result.Execute(5) in (r1,r2,r3,r4,r5)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E6 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6 |] = result.Execute(6) in (r1,r2,r3,r4,r5,r6)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E7 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7 |] = result.Execute(7) in (r1,r2,r3,r4,r5,r6,r7)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E8 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8 |] = result.Execute(8) in (r1,r2,r3,r4,r5,r6,r7,r8)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
+let E9 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8; r9 |] = result.Execute(9) in (r1,r2,r3,r4,r5,r6,r7,r8,r9)
 
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E1|) (result: IMatlabAppliedFunctionHandle) = let [| r |] = result.Execute(1) in r
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E2|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2 |] = result.Execute(2) in (r1,r2)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E3|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3 |] = result.Execute(3) in (r1,r2,r3)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E4|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4 |] = result.Execute(4) in (r1,r2,r3,r4)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E5|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5 |] = result.Execute(5) in (r1,r2,r3,r4,r5)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E6|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6 |] = result.Execute(6) in (r1,r2,r3,r4,r5,r6)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E7|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7 |] = result.Execute(7) in (r1,r2,r3,r4,r5,r6,r7)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E8|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8 |] = result.Execute(8) in (r1,r2,r3,r4,r5,r6,r7,r8)
+/// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
 let (|E9|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8; r9 |] = result.Execute(9) in (r1,r2,r3,r4,r5,r6,r7,r8,r9)
 
-//
-// These helpers allow you to execute and split out the results easily, getting the actual values
-//
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER1 (result: IMatlabAppliedFunctionHandle) = let [| r |] = result.ExecuteAndRetrieve(1) in r
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER2 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2 |] = result.ExecuteAndRetrieve(2) in (r1,r2)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER3 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3 |] = result.ExecuteAndRetrieve(3) in (r1,r2,r3)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER4 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4 |] = result.ExecuteAndRetrieve(4) in (r1,r2,r3,r4)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER5 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5 |] = result.ExecuteAndRetrieve(5) in (r1,r2,r3,r4,r5)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER6 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6 |] = result.ExecuteAndRetrieve(6) in (r1,r2,r3,r4,r5,r6)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER7 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7 |] = result.ExecuteAndRetrieve(7) in (r1,r2,r3,r4,r5,r6,r7)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER8 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8 |] = result.ExecuteAndRetrieve(8) in (r1,r2,r3,r4,r5,r6,r7,r8)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
+let ER9 (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8; r9 |] = result.ExecuteAndRetrieve(9) in (r1,r2,r3,r4,r5,r6,r7,r8,r9)
 
+
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER1|) (result: IMatlabAppliedFunctionHandle) = let [| r |] = result.ExecuteAndRetrieve(1) in r
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER2|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2 |] = result.ExecuteAndRetrieve(2) in (r1,r2)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER3|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3 |] = result.ExecuteAndRetrieve(3) in (r1,r2,r3)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER4|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4 |] = result.ExecuteAndRetrieve(4) in (r1,r2,r3,r4)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER5|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5 |] = result.ExecuteAndRetrieve(5) in (r1,r2,r3,r4,r5)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER6|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6 |] = result.ExecuteAndRetrieve(6) in (r1,r2,r3,r4,r5,r6)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER7|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7 |] = result.ExecuteAndRetrieve(7) in (r1,r2,r3,r4,r5,r6,r7)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER8|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8 |] = result.ExecuteAndRetrieve(8) in (r1,r2,r3,r4,r5,r6,r7,r8)
+/// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let (|ER9|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8; r9 |] = result.ExecuteAndRetrieve(9) in (r1,r2,r3,r4,r5,r6,r7,r8,r9)
 
 //
