@@ -92,21 +92,23 @@ module MatlabCallHelpers =
         |> Array.filter (fun progid -> progid.Contains("Matlab"))
         
     let parseWhos (whosstr: string) =
-        let crlfchars = [|'\r'; '\n'|]
-        let byline = whosstr.Split(crlfchars, StringSplitOptions.RemoveEmptyEntries) 
-        let header = byline.[0].Split([|' '|], StringSplitOptions.RemoveEmptyEntries)
-        assert(header.[0] = "Name" && header.[1] = "Size" && header.[2] = "Bytes" && header.[3] = "Class" && header.[4] = "Attributes")
-        [|
-            for i = 1 to byline.Length - 1 do
-                let bytoken = byline.[i].Split([|' '|], StringSplitOptions.RemoveEmptyEntries) 
-                yield {
-                    Name = bytoken.[0]
-                    Size = bytoken.[1].Split([|'x'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun n -> int n) |> Array.toList
-                    Bytes = bytoken.[2] |> uint64
-                    Class = bytoken.[3]
-                    Attributes = if bytoken.Length >= 5 then bytoken.[4 ..] |> Array.toList else []
-                }
-        |]
+        if String.IsNullOrWhiteSpace(whosstr) then [| |]
+        else
+            let crlfchars = [|'\r'; '\n'|]
+            let byline = whosstr.Split(crlfchars, StringSplitOptions.RemoveEmptyEntries) 
+            let header = byline.[0].Split([|' '|], StringSplitOptions.RemoveEmptyEntries)
+            assert(header.[0] = "Name" && header.[1] = "Size" && header.[2] = "Bytes" && header.[3] = "Class" && header.[4] = "Attributes")
+            [|
+                for i = 1 to byline.Length - 1 do
+                    let bytoken = byline.[i].Split([|' '|], StringSplitOptions.RemoveEmptyEntries) 
+                    yield {
+                        Name = bytoken.[0]
+                        Size = bytoken.[1].Split([|'x'|], StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun n -> int n) |> Array.toList
+                        Bytes = bytoken.[2] |> uint64
+                        Class = bytoken.[3]
+                        Attributes = if bytoken.Length >= 5 then bytoken.[4 ..] |> Array.toList else []
+                    }
+            |]
 
 
     let correctFEvalResult (res: obj) =
@@ -324,7 +326,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
                            | :? IMatlabVariableHandle as h -> h, false
                            | o -> 
                                 let varname = getSafeRandomVariableName (currentVars.Force()) 
-                                t.SetVariable(varname, o),true // Side Effect: Sets variables matlab side
+                                t.SetVariable(varname, o), true // Side Effect: Sets variables matlab side
             |]   
 
         // Generate call text
@@ -339,7 +341,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
 
         // Delete inargs variables that were generated just for this call
         for arg, deleteMe in inArgs do
-            if deleteMe then proxy.Execute([|String.Format("clear {0}", arg)|]) |> ignore
+            if deleteMe then arg.Delete()
 
         // Build result handles
         [| for outArgName in outArgNames do yield t.GetVariableHandle(outArgName) |]
