@@ -6,7 +6,6 @@ open Xunit
 
 open LazyMatlab
 open FSMatlab.InterfaceTypes
-open LazyMatlab.InterfaceTypeExtensionsAndHelpers
 
 open TestHelpers
 
@@ -40,7 +39,7 @@ let ``simple function calls should execute and return a single correct answer wi
 [<Fact>]
 let ``simple function calls should execute and return a single correct answer with execute and retrieve helper`` () =
     TestHelpers.AssertNoVariableChanges (fun _ -> 
-        let (ER1(res_untyped)) = Toolboxes.``matlab\elfun``.nthroot(9.0, 2.0) 
+        let (EG1(res_untyped)) = Toolboxes.``matlab\elfun``.nthroot(9.0, 2.0) 
         Assert.Equal(3.0, res_untyped :?> double)
     )
 
@@ -49,7 +48,14 @@ let ``simple function calls should work with matlab-side bound variables`` () =
     TestHelpers.AssertNoVariableChanges (fun _ ->
         let nine = FSMatlab.MatlabInterface.executor.OverwriteVariable("nine", 9.0)
         let two  = FSMatlab.MatlabInterface.executor.OverwriteVariable("two",  2.0)
-        let (ER1(res_untyped)) = Toolboxes.``matlab\elfun``.nthroot(nine, two) 
+        let (EG1(res_untyped)) = Toolboxes.``matlab\elfun``.nthroot(nine, two) 
         [ nine; two; ] |> List.iter (fun v -> v.Delete())
         Assert.Equal(3.0, res_untyped :?> double)
     )
+
+
+[<Fact>] 
+let ``function with two output params should work correctly`` () =
+    let (EG2(m,n)) = Toolboxes.``matlab\elmat``.size([|1;2;3;4;5|])
+    Assert.Equal(1.0, m :?> double)
+    Assert.Equal(5.0, n :?> double)

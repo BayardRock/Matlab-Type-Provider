@@ -251,7 +251,7 @@ module RepresentationBuilders =
             member t.Info = info 
         }
 
-type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
+type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
     //
     // Actual Useful Stuff
@@ -303,8 +303,10 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
     member t.SetVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle option =
         // TODO: Proper Conversions
         let overwrite = defaultArg overwrite false
-        let vi = t.GetVariableInfo(name)
-        if overwrite || vi.IsNone then
+        // Quick check to see if the type is convertable (some types may actually work but be blocked by this)
+        do TypeConverters.getMatlabTypeFromDotNetSig (value.GetType()) |> ignore
+        let var_doesnt_exist = t.GetVariableInfo(name).IsNone
+        if overwrite || var_doesnt_exist then
             proxy.PutWorkspaceData name value
             t.GetVariableHandle(name) |> Some
         else None
@@ -319,8 +321,8 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
 
     member t.GetVariableHandle(name: string) = 
         let argInfo = match t.GetVariableInfo(name) with
-                    | Some (name) -> name
-                    | None -> failwith (sprintf "Variable not found: %s" name)
+                      | Some (name) -> name
+                      | None -> failwith (sprintf "Variable not found: %s" name)
         t.GetVariableHandle(argInfo)
 
     /// Call a function with either MatlabVariableHandles or Objs, Returns a handle
