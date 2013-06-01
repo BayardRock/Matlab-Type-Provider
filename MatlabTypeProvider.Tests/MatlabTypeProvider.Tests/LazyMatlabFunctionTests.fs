@@ -43,3 +43,13 @@ let ``simple function calls should execute and return a single correct answer wi
         let (ER1(res_untyped)) = Toolboxes.``matlab\elfun``.nthroot(9.0, 2.0) 
         Assert.Equal(3.0, res_untyped :?> double)
     )
+
+[<Fact>]
+let ``simple function calls should work with matlab-side bound variables`` () =
+    TestHelpers.AssertNoVariableChanges (fun _ ->
+        let nine = FSMatlab.MatlabInterface.executor.OverwriteVariable("nine", 9.0)
+        let two  = FSMatlab.MatlabInterface.executor.OverwriteVariable("two",  2.0)
+        let (ER1(res_untyped)) = Toolboxes.``matlab\elfun``.nthroot(nine, two) 
+        [ nine; two; ] |> List.iter (fun v -> v.Delete())
+        Assert.Equal(3.0, res_untyped :?> double)
+    )

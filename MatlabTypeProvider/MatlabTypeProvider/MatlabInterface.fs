@@ -296,10 +296,18 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
     member t.GetVariableInfos() = proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfo name = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.tryFind (fun _ -> true)
 
-    member t.SetVariable(name: string, value: obj) : IMatlabVariableHandle =
-        // TODO: Proper Conversions
+    member t.OverwriteVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle =
         proxy.PutWorkspaceData name value
         t.GetVariableHandle(name)
+                    
+    member t.SetVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle option =
+        // TODO: Proper Conversions
+        let overwrite = defaultArg overwrite false
+        let vi = t.GetVariableInfo(name)
+        if overwrite || vi.IsNone then
+            proxy.PutWorkspaceData name value
+            t.GetVariableHandle(name) |> Some
+        else None
 
     member t.DeleteVariable(name: string) : unit = 
         proxy.Execute([|"clear " + name|]) |> ignore
@@ -326,7 +334,10 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) as this =
                            | :? IMatlabVariableHandle as h -> h, false
                            | o -> 
                                 let varname = getSafeRandomVariableName (currentVars.Force()) 
-                                t.SetVariable(varname, o), true // Side Effect: Sets variables matlab side
+                                // Side Effect: Sets variables matlab side, be sure to delete them after
+                                match t.SetVariable(varname, o) with
+                                | Some (handle) -> handle, true 
+                                | None -> failwith (sprintf "Variable with this name already exists: %s" varname)
             |]   
 
         // Generate call text

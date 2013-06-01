@@ -50,3 +50,11 @@ let (|ER6|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; 
 let (|ER7|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7 |] = result.ExecuteAndRetrieve(7) in (r1,r2,r3,r4,r5,r6,r7)
 let (|ER8|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8 |] = result.ExecuteAndRetrieve(8) in (r1,r2,r3,r4,r5,r6,r7,r8)
 let (|ER9|) (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8; r9 |] = result.ExecuteAndRetrieve(9) in (r1,r2,r3,r4,r5,r6,r7,r8,r9)
+
+//
+// This is a computation expression to avoid dealing with the matlab types
+//
+
+type MatlabBuilder () =
+    member t.Bind(comp, func) = () 
+    member t.YieldFrom(expr) = ()
