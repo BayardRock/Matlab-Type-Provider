@@ -55,7 +55,19 @@ let ``simple function calls should work with matlab-side bound variables`` () =
 
 
 [<Fact>] 
-let ``function with two output params should work correctly`` () =
-    let (EG2(m,n)) = Toolboxes.``matlab\elmat``.size([|1;2;3;4;5|])
+let ``function with two output params should work correctly with lefthand side execute-get`` () =
+    let (EG2(m,n)) = Toolboxes.``matlab\elmat``.size([|1.0;2.0;3.0;4.0;5.0|])
     Assert.Equal(1.0, m :?> double)
     Assert.Equal(5.0, n :?> double)
+
+[<Fact>]
+let ``function with two output params should work correctly with right out execute-get`` () =  
+    let m,n = Toolboxes.``matlab\elmat``.size([|1.0;2.0;3.0;4.0;5.0|]) |> EG2
+    Assert.Equal(1.0, m :?> double)
+    Assert.Equal(5.0, n :?> double)
+
+[<Fact>]
+let ``function with two output params should work correctly with right out execute-get-typed`` () =  
+    let m,n = Toolboxes.``matlab\elmat``.size([|1.0;2.0;3.0;4.0;5.0|]) |> EGT2<double,double>
+    Assert.Equal(1.0, m)
+    Assert.Equal(5.0, n)

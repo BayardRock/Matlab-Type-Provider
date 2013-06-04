@@ -70,3 +70,9 @@ and IMatlabAppliedFunctionHandle =
     /// Executes the function specifying N outputs which will be randomly named and returned
     abstract member Execute : int -> IMatlabVariableHandle []
     abstract member Info : MatlabFunctionInfo
+
+type MatlabExpression = 
+    | Var of IMatlabVariableHandle
+    // The string represents the op to be used
+    | InfixOp of string * MatlabExpression * MatlabExpression
+    | Function of IMatlabFunctionHandle * MatlabExpression []
