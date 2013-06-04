@@ -28,23 +28,27 @@
         </ul>
       </header>
       <section>
-        <h3>What to expect</h3>
+        <h3>
+<a name="what-to-expect" class="anchor" href="#what-to-expect"><span class="octicon octicon-link"></span></a>What to expect</h3>
 
 <p>The goal of this project is to provide a smooth and efficient framework for F#-Matlab interactions.  The goals for 1.0 include support for most Matlab functions and types in as well typed a manner as possible.</p>
 
 <p>A simple version of our goal is now working fairly well.  Give it a little play and let me know if you find any problems.</p>
 
-<h3>Current Requirements</h3>
+<h3>
+<a name="current-requirements" class="anchor" href="#current-requirements"><span class="octicon octicon-link"></span></a>Current Requirements</h3>
 
 <ul>
 <li>Matlab 2013a (or earlier with <a href="http://www.mathworks.com/matlabcentral/fileexchange/31862-strjoin">strjoin.m</a>, tested up to 2012a)</li>
 <li>Visual Studio 2012 (May work with other Windows F# IDEs as well, but not tested)</li>
-</ul><h3>Current Capabilities</h3>
+</ul><h3>
+<a name="current-capabilities" class="anchor" href="#current-capabilities"><span class="octicon octicon-link"></span></a>Current Capabilities</h3>
 
 <ul>
 <li>Access non-complex Values, Matrices and Vectors in a strongly typed fashion. </li>
 <li>The ability to call Matlab Toolbox functions with appropriate F# values.</li>
-</ul><h3>Getting Started</h3>
+</ul><h3>
+<a name="getting-started" class="anchor" href="#getting-started"><span class="octicon octicon-link"></span></a>Getting Started</h3>
 
 <p>Add the following parameters to your Matlab 2013a shortcut:</p>
 
@@ -74,15 +78,18 @@ let res = Toolboxes.``matlab\elfun``.nthroot(6.0, 2.0)
 let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|]) 
 </code></pre>
 
-<h3>Known Problems / Future Work</h3>
+<h3>
+<a name="known-problems--future-work" class="anchor" href="#known-problems--future-work"><span class="octicon octicon-link"></span></a>Known Problems / Future Work</h3>
 
 <ul>
+<li>.Mex (and .Mexw64) files are not yet supported.  All accessible functions must have a corresponding .m file. </li>
 <li>The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux.</li>
 <li>Currently any call to a Matlab function will return all of its result values, even the optional ones.  I'm currently exploring several approaches to resolving this.</li>
 <li>Toolbox naming is a bit wonky, but allows for easy exploration. </li>
 <li>The type provider does not currently take any static parameters.  I'd like it to support at least the ability to select the way to contact Matlab and also to execute a specified script to bind variables.</li>
 <li>It would be ideal to be able to compose functions in F# and then have the entire call be executed in Matlab.  This may take some doing, but I believe it's completely possible. </li>
-</ul><h3>Planned Limitations</h3>
+</ul><h3>
+<a name="planned-limitations" class="anchor" href="#planned-limitations"><span class="octicon octicon-link"></span></a>Planned Limitations</h3>
 
 <ul>
 <li>The parameters to and the result of calls to Matlab functions will remain untyped for the foreseeable future.  As it currently stands, there seems be no way to provide types for Matlab functions without manual labeling as with TypeScript.</li>
