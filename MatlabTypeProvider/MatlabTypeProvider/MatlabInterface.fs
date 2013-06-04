@@ -229,13 +229,16 @@ open MatlabCOM
 module RepresentationBuilders =     
     let getVariableHandleFromVariableInfo (info: MatlabVariableInfo) (getContents: string -> MatlabType -> obj) (deleteVar: string -> unit) : IMatlabVariableHandle =
         let matlabType = TypeConverters.getMatlabTypeFromMatlabSig(info)
+        let is_disposed = ref false
         { new IMatlabVariableHandle with
-            member t.Name = info.Name 
-            member t.GetUntyped () = getContents info.Name  matlabType 
-            member t.Info = info
-            member t.MatlabType = matlabType
-            member t.LocalType = TypeConverters.getDotNetType(matlabType)  
-            member t.Delete () = deleteVar info.Name
+                member t.Name = info.Name 
+                member t.GetUntyped () = getContents info.Name  matlabType 
+                member t.Info = info
+                member t.MatlabType = matlabType
+                member t.LocalType = TypeConverters.getDotNetType(matlabType)  
+                member t.Dispose () = if not !is_disposed then deleteVar info.Name
+            interface IDisposable with
+                member t.Dispose () = if not !is_disposed then deleteVar info.Name
         }
 
     let getFunctionHandleFromFunctionInfo (info: MatlabFunctionInfo) (execFuncNamed: obj[] -> string[] -> IMatlabVariableHandle[]) (execFuncNum: obj[] -> int -> IMatlabVariableHandle[])  : IMatlabFunctionHandle =
@@ -354,7 +357,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
         // Delete inargs variables that were generated just for this call
         for arg, deleteMe in inArgs do
-            if deleteMe then arg.Delete()
+            if deleteMe then arg.Dispose()
 
         // Build result handles
         [| for outArgName in outArgNames do yield t.GetVariableHandle(outArgName) |]

@@ -43,6 +43,8 @@ type MatlabToolboxInfo = {
     }
 
 type IMatlabVariableHandle = 
+    inherit IDisposable
+    abstract member Dispose: unit -> unit
     /// The name of this variable in Matlab
     abstract member Name : string
     /// Retrieves the contents of this variable from Matlab, statically parameterized by type
@@ -53,8 +55,6 @@ type IMatlabVariableHandle =
     abstract member MatlabType : MatlabType
     /// The .net type that this variable will be converted to when gotten
     abstract member LocalType: Type
-    /// Removes this variable from matlab scope.  After this all calls which go to matlab will fail with an exception. 
-    abstract member Delete : unit -> unit
 
 
 type IMatlabFunctionHandle = 

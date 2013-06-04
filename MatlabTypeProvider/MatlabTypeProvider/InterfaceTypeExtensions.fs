@@ -21,7 +21,7 @@ type IMatlabAppliedFunctionHandle with
     member t.ExecuteAndRetrieve(n: int) : obj [] =
         let vars = t.Execute(n) 
         let res = vars |> Array.map (fun mv -> mv.GetUntyped())
-        do vars |> Array.iter (fun mv -> mv.Delete())
+        do vars |> Array.iter (fun mv -> mv.Dispose())
         res
 
 /// These helpers execute the matlab function and split out the MatlabVariableHandles into tuples
