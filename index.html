@@ -60,6 +60,9 @@
 
 <p><code>#R "MatlabTypeProvider.dll"</code></p>
 
+<h2>
+<a name="the-simple-matlab-provider" class="anchor" href="#the-simple-matlab-provider"><span class="octicon octicon-link"></span></a>The Simple Matlab Provider</h2>
+
 <p>Then just access variables that were bound in Matlab before the Type Provider was loaded like so: </p>
 
 <pre><code>open SimpleMatlabProvider
@@ -76,6 +79,27 @@ let res = Toolboxes.``matlab\elfun``.nthroot(6.0, 2.0)
 
 <pre><code>open SimpleMatlabProvider
 let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|]) 
+</code></pre>
+
+<h2>
+<a name="the-lazy-matlab-provider" class="anchor" href="#the-lazy-matlab-provider"><span class="octicon octicon-link"></span></a>The Lazy Matlab Provider</h2>
+
+<p>The lazy provider is similar to the simple one, but only deals in handles to functions and variables by default.  This prevents a lot of extra pushing data back-and-forth from Matlab when doing complex combinations of functions.  It also allows you to select exactly how many output parameters you want.</p>
+
+<pre><code>open LazyMatlabProvider
+open FSMatlab.InterfaceTypes
+let m,n = Toolboxes.``matlab\elmat``.size([|1.0;2.0;3.0;4.0;5.0|]) |&gt; EGT2&lt;double,double&gt;
+</code></pre>
+
+<p>Here EGT2 stands for Execute-Get-Typed with two outputs.  Because you are not being returned a variable  handle this will automatically delete the temporary result.  We also provide the E function which just executes and returns a handle:</p>
+
+<pre><code>use x = Toolboxes.``matlab\elfun``.nthroot(9.0, 2.0) |&gt; E1
+</code></pre>
+
+<p>Here x is a handle to an variable active variable in your Matlab instance.  Note that it implements IDisposable and so when used with the <strong>use</strong> keyword will automatically be deleted from Matlab when it leaves scope.  You can use it as you see fit and delete it when you're done.  </p>
+
+<pre><code>let x_val_obj = res_var.GetUntyped() // type is obj
+let x_val_typed : double = res_var.Get() // type is double
 </code></pre>
 
 <h3>
