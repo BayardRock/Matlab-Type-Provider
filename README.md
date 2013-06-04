@@ -64,6 +64,7 @@ let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|])
 
 ### Known Problems / Future Work
 
+* Mex Files (and the functions inside) are not yet accessible. 
 * The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux.
 * Currently any call to a Matlab function will return all of its result values, even the optional ones.  I'm currently exploring several approaches to resolving this.
 * Toolbox naming is a bit wonky, but allows for easy exploration. 
