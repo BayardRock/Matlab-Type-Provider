@@ -84,7 +84,7 @@ let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|])
 <h2>
 <a name="the-lazy-matlab-provider" class="anchor" href="#the-lazy-matlab-provider"><span class="octicon octicon-link"></span></a>The Lazy Matlab Provider</h2>
 
-<p>The lazy provider is similar to the simple one, but only deals in handles to functions and variables by default.  This prevents a lot of extra pushing data back-and-forth from Matlab when doing complex combinations of functions.  It also allows you to select exactly how many output parameters you want.</p>
+<p>The lazy provider is similar to the simple one, but deals in handles to functions and variables as well as .NET objects.  This prevents a lot of extra pushing data back-and-forth from Matlab when doing complex combinations of functions.  It also allows you to select exactly how many output parameters you want.</p>
 
 <pre><code>open LazyMatlabProvider
 open FSMatlab.InterfaceTypes
@@ -98,8 +98,8 @@ let m,n = Toolboxes.``matlab\elmat``.size([|1.0;2.0;3.0;4.0;5.0|]) |&gt; EGT2&lt
 
 <p>Here x is a handle to an variable active variable in your Matlab instance.  Note that it implements IDisposable and so when used with the <strong>use</strong> keyword will automatically be deleted from Matlab when it leaves scope.  You can use it as you see fit and delete it when you're done.  </p>
 
-<pre><code>let x_val_obj = res_var.GetUntyped() // type is obj
-let x_val_typed : double = res_var.Get() // type is double
+<pre><code>let x_val_obj = x.GetUntyped() // type is obj
+let x_val_typed : double = x.Get() // type is double
 </code></pre>
 
 <h3>
