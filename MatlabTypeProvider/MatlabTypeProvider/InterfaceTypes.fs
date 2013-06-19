@@ -2,6 +2,8 @@
 
 open System
 
+exception MatlabErrorException of string
+
 type MatlabType = 
     | MString = 0
     | MDouble = 1

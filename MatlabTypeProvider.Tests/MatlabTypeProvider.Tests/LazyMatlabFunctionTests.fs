@@ -75,3 +75,12 @@ let ``function with two output params should work correctly with right out execu
         Assert.Equal(1.0, m)
         Assert.Equal(5.0, n)
     )
+
+[<Fact>] 
+let ``error in matlab computation should cause an appropriate exception`` () =
+    TestHelpers.AssertNoVariableChanges (fun _ ->
+        Assert.Throws<MatlabErrorException>( new Assert.ThrowsDelegate(fun _ ->
+            Toolboxes.``matlab\elfun``.nthroot("hello") |> EG1 |> ignore
+        )) |> ignore        
+    )    
+    

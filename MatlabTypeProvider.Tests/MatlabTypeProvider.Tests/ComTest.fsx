@@ -179,3 +179,11 @@ proxy.Feval "strcat" 1 [|"My Name is:"; "name="|]
 //
 let mutable outvar = "outname=" :> obj
 proxy.FevalOut("strcat", 1, [|"My Name is:"; "name="|], &outvar)
+
+//
+// How do errors look in Execute?
+//
+proxy.PutCharArray "x" "hello"
+let res = proxy.Execute([|"""nthroot(x,"world")"""|]) :?> string
+res.StartsWith("??? Error")
+

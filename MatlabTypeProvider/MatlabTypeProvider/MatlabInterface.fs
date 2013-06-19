@@ -352,12 +352,16 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let formattedCall = String.Format("[{0}] = {1}({2})", formattedOutArgs, name, formattedInArgs)
 
         // Make call
-        let res = proxy.Execute([|formattedCall|]) 
-        // TODO: Check res for errors (it may just throw)
-
-        // Delete inargs variables that were generated just for this call
-        for arg, deleteMe in inArgs do
-            if deleteMe then arg.Dispose()
+        let res = 
+            try 
+                let res = proxy.Execute([|formattedCall|]) :?> string 
+                // Fail if things didn't work out
+                if res.Trim().StartsWith("??? Error") then raise <| MatlabErrorException(res) 
+                res
+            finally 
+                // Delete inargs variables that were generated just for this call
+                for arg, deleteMe in inArgs do
+                    if deleteMe then try arg.Dispose() with _ -> ()
 
         // Build result handles
         [| for outArgName in outArgNames do yield t.GetVariableHandle(outArgName) |]
