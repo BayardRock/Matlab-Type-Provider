@@ -4,6 +4,7 @@ Matlab-Type-Provider
 A (not yet complete) Type Provider for Matlab in the spirit of the R Type Provider
 
 Recent Additions:
+- 06/21/2013 - Now querrying to get the correct parameterization for native and MEX functions.  No more varargs all over the place!
 - 05/31/2013 - Added Basics for the Lazy Provider (open the LazyMatlab namespace instead of SimpleMatlab)
 - 05/24/2013 - Added support for varargin/varargout functions and native matlab functions
 - 05/17/2013 - Added Matlab->F# introp for complex values, vectors and matrices
