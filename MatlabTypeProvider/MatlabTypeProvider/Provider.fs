@@ -15,28 +15,27 @@ open FSMatlab.Interface
 module MatlabInterface =    
     let executor = MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
 
+module ProviderHelpers = 
+        let internal getParamsForFunctionInputs (mlfun: MatlabFunctionInfo) =
+            let hasVarargin = match mlfun.InParams |> List.rev with | "varargin" :: rest -> true | _ -> false
+            [                     
+                for p in mlfun.InParams do
+                    if p <> "varargin" then yield ProvidedParameter(p, typeof<obj>, optionalValue = null) 
+                    else                    yield ProvidedParameter(p, typeof<obj []>, IsParamArray = true)
+            ], hasVarargin
+
 module SimpleProviderHelpers = 
     let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
             [
                 for var in executor.GetVariableInfos() do
-                    let mltype = TypeConverters.getMatlabTypeFromMatlabSig(var)
                     let p = ProvidedProperty(
                                 propertyName = var.Name, 
-                                propertyType = TypeConverters.getDotNetType(mltype), 
+                                propertyType = var.Type, 
                                 IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, mltype) @@>)
+                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, var.MatlabType) @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
             ]
-
-    let internal getParamsForFunctionInputs (mlfun: MatlabFunctionInfo) =
-        let hasVarargin = match mlfun.InParams |> List.rev with | "varargin" :: rest -> true | _ -> false
-        [                     
-            for p in mlfun.InParams do
-                if p <> "varargin" then
-                    yield ProvidedParameter(p, typeof<obj>, optionalValue=null) 
-                else yield ProvidedParameter(p, typeof<obj []>, optionalValue=null)
-        ], hasVarargin
 
     let internal getParamsForFunctionOutputs (mlfun: MatlabFunctionInfo) = 
         let hasVarargout = match mlfun.OutParams |> List.rev with | "varargout" :: rest -> true | _ -> false
@@ -55,7 +54,7 @@ module SimpleProviderHelpers =
 
     /// Generates a Method in which all of the parameters are optional, and the output is a tuple with the entire result set, even optionals
     let generateFullFunctionCallsFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
-        let funcParams, hasVarargin = getParamsForFunctionInputs mlfun
+        let funcParams, hasVarargin = ProviderHelpers.getParamsForFunctionInputs mlfun
         let outputType, hasVarargout = getParamsForFunctionOutputs mlfun
         let getXmlText () = executor.GetFunctionHelp tb mlfun        
        
@@ -77,7 +76,6 @@ module SimpleProviderHelpers =
 
                                         let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
                                         <@@ 
-                                            //failwith (sprintf "Varargs: %A" (%%varInArgs : obj []))
                                             MatlabInterface.executor.CallFunctionWithValues(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
@@ -86,31 +84,41 @@ module SimpleProviderHelpers =
 
 module LazyProviderHelpers =
 
-    let applyArgsToHandle (handle: IMatlabFunctionHandle, args: obj []) =
-        handle.Apply(args)
+    let applyArgsToHandle (handle: IMatlabFunctionHandle, args: obj [], varargsin: obj []) = 
+        let allargs = Array.concat [args; varargsin]
+        handle.Apply(allargs)
     
     let generateFunctionHandlesFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
-        let funcParam =
-            let pp = ProvidedParameter("args", typeof<obj[]>, optionalValue=null)
-            pp.IsParamArray <- true; pp
+        let funcParams, hasVarargin = ProviderHelpers.getParamsForFunctionInputs mlfun
 
         let outputType = typeof<obj []>
         let getXmlText () = executor.GetFunctionHelp tb mlfun       
 
         let pm = ProvidedMethod(
                         methodName = mlfun.Name,
-                        parameters = [funcParam],
+                        parameters = funcParams,
                         returnType = typeof<IMatlabAppliedFunctionHandle>,
                         IsStaticMethod = true,
                         InvokeCode = fun args -> 
                                         let functionPath = mlfun.Path
                                         let name = mlfun.Name 
-                                        let numout = mlfun.OutParams.Length    
-                                        let arrArgs = args.[0]
+                                        let numout = mlfun.OutParams.Length
+                                        let arrArgs = args |> List.toArray
+
+                                        let varInArgs = 
+                                            if hasVarargin then arrArgs.[arrArgs.Length - 1]
+                                            else Quotations.Expr.NewArray(typeof<obj>, [])
+
+                                        let namedInArgs = if hasVarargin then
+                                                               let nArgs = arrArgs.[0 .. arrArgs.Length - 2] //|> Array.map (fun expr -> Quotations.Expr.Coerce(expr, typeof<obj>))
+                                                               Quotations.Expr.NewArray(typeof<obj>, nArgs |> Array.toList)
+                                                          else Quotations.Expr.NewArray(typeof<obj>, args)
+
                                         <@@ 
-                                            let finfo =  MatlabInterface.executor.GetFunctionInfoFromFile functionPath
+                                            let finfo =  MatlabInterface.executor.GetFunctionInfoFromName name
                                             let fhandle = MatlabInterface.executor.GetFunctionHandle(finfo)
-                                            applyArgsToHandle(fhandle, (%%arrArgs: obj[]))
+
+                                            applyArgsToHandle(fhandle, (%%namedInArgs: obj[]), (%%varInArgs: obj[]))
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm

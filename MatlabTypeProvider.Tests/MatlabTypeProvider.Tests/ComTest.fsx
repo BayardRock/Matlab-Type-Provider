@@ -187,3 +187,11 @@ proxy.PutCharArray "x" "hello"
 let res = proxy.Execute([|"""nthroot(x,"world")"""|]) :?> string
 res.StartsWith("??? Error")
 
+//
+// Fevalin out function infos
+//
+let res = proxy.Feval "nargin" 1 [|"cos"|]
+(res :?> obj[]).[0] :?> float |> int
+exec.GetFunctionInfoFromName("cos")
+exec.GetFunctionNumInputArgs("cos")
+exec.GetFunctionNumOutputArgs("cos")

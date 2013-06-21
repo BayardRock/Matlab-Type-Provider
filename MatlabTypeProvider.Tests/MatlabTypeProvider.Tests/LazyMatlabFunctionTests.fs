@@ -83,4 +83,8 @@ let ``error in matlab computation should cause an appropriate exception`` () =
             Toolboxes.``matlab\elfun``.nthroot("hello") |> EG1 |> ignore
         )) |> ignore        
     )    
-    
+   
+[<Fact>]
+let ``function calls with varargsin should work correctly`` () = 
+    let res = Toolboxes.``matlab\strfun``.strcat("one", "two", "three") |> EGT1<string>
+    Assert.Equal<string>("onetwothree", res)

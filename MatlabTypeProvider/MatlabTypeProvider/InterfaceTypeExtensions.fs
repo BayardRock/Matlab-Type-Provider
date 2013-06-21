@@ -9,7 +9,7 @@ type IMatlabVariableHandle with
     /// If anything goes wrong None will be returned, including the case where Matlab is no longer available.
     member t.GetSafe () : Option<'a> = 
         try 
-            if typeof<'a> = t.LocalType 
+            if typeof<'a> = t.Info.Type 
             then Some(t.GetUntyped() :?> 'a) else None
         with _ -> None
     /// Gets the contents of the variable statically parameterized by type

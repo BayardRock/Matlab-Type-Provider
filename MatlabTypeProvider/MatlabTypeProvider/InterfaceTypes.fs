@@ -26,7 +26,7 @@ type MatlabFunctionInfo = {
         Name: string
         InParams: string list
         OutParams: string list
-        Path: string
+        Path: string option
     }
 
 type MatlabVariableInfo = {
@@ -36,6 +36,15 @@ type MatlabVariableInfo = {
         Class: string
         Attributes: string list
     }
+
+type TPVariableInfo = {
+        MatlabVariableInfo: MatlabVariableInfo
+        MatlabType: MatlabType
+        Type: System.Type
+    }
+    with 
+        member t.Name = t.MatlabVariableInfo.Name
+        member t.Size = t.MatlabVariableInfo.Size
 
 type MatlabToolboxInfo = {
         Name: string
@@ -52,12 +61,7 @@ type IMatlabVariableHandle =
     /// Retrieves the contents of this variable from Matlab, statically parameterized by type
     abstract member GetUntyped : unit -> obj
     /// Actual information on the variable as of it's state when this IMatlabVariableHandle was created
-    abstract member Info: MatlabVariableInfo
-    /// An enumeration representing supported matlab types for conversion to F#
-    abstract member MatlabType : MatlabType
-    /// The .net type that this variable will be converted to when gotten
-    abstract member LocalType: Type
-
+    abstract member Info: TPVariableInfo
 
 type IMatlabFunctionHandle = 
     abstract member Name : string

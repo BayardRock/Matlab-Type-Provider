@@ -43,6 +43,7 @@
     <Compile Include="MatlabFunctionParsing.fs" />
     <Compile Include="InterfaceTypes.fs" />
     <Compile Include="InterfaceTypeExtensions.fs" />
+    <Compile Include="InterfaceHelpers.fs" />
     <Compile Include="MatlabInterface.fs" />
     <Compile Include="Provider.fs" />
   </ItemGroup>

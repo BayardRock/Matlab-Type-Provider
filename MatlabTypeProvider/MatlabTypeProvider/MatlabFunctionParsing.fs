@@ -114,34 +114,3 @@ let parseFunDecl (window: StringWindow) =
         let domain = parseDomain enumTokens
         (funname, domain, codomain)
     | _ -> failwith "function token expected but not found"
-
-
-//    let rec parseFunDecls (window: StringWindow) =
-//        [
-//            match findFunc(window) with
-//            | Some (tokens) -> 
-//                yield parseFunDecl (tokens |> Seq.map fst)
-//                yield! parseFunDecls (window.Subwindow(uint32 "function".Length))
-//            | None -> ()
-//        ] 
-
-/// Finds all matlab function declarations in the file and parses them
-//let rec findDecl (window: StringWindow) =
-//    [
-//        match findFunc(window) with
-//        | Some tokenStream ->                
-//            let eqIdx = window.IndexOf("=") 
-//            let codomainPrms = window.Substring(eqIdx).Split([|'[';']';',';' '|], StringSplitOptions.RemoveEmptyEntries)
-//
-//            let eqWindow = window.Subwindow(uint32 eqIdx + 1u)
-//            let varsStartIdx = eqWindow.IndexOf("(")
-//            let funName = eqWindow.Substring(varsStartIdx)
-//
-//            let doWindow = eqWindow.Subwindow(uint32 varsStartIdx + 1u)
-//            let domainEndIdx = doWindow.IndexOf(")")
-//            let domainPrms = doWindow.Substring(domainEndIdx).Split([|'(';')';',';' '|], StringSplitOptions.RemoveEmptyEntries)
-//                
-//            yield funName, domainPrms, codomainPrms
-//            yield! findDecl doWindow                                            
-//        | None -> ()
-//    ]
