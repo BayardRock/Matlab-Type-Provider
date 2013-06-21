@@ -87,9 +87,9 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.SetVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle option =
         // TODO: Proper Conversions
         let overwrite = defaultArg overwrite false
-        //let vtype = if value = null then failwith (sprintf "Cannot set %s to null" name) else value.GetType()
+        let vtype = if value = null then failwith (sprintf "Cannot set %s to null" name) else value.GetType()
         // Quick check to see if the type is convertable (some types may actually work but be blocked by this)
-        //do TypeConverters.getMatlabTypeFromDotNetSig vtype |> ignore
+        do TypeConverters.getMatlabTypeFromDotNetSig vtype |> ignore
         let var_doesnt_exist = t.GetVariableInfo(name).IsNone
         if overwrite || var_doesnt_exist then
             proxy.PutWorkspaceData name value
@@ -148,7 +148,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             try 
                 let res = proxy.Execute([|formattedCall|]) :?> string 
                 // Fail if things didn't work out
-                if res.Trim().StartsWith("??? Error") then failwith (sprintf "Formatted call (%s) gave the following error (%s)" formattedCall res) //raise <| MatlabErrorException(res) 
+                if res.Trim().StartsWith("??? Error") then raise <| MatlabErrorException (sprintf "Formatted call (%s) gave the following error (%s)" formattedCall res) 
                 res
             finally  
                 // Delete inargs variables that were generated just for this call
