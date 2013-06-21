@@ -76,6 +76,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         RepresentationBuilders.getFunctionHandleFromFunctionInfo funcInfo fexecNamed fexecNum
 
 
+    member t.GetMatlabVariableInfos() =  proxy.Execute [|"whos"|] :?> string |> parseWhos
     member t.GetVariableInfos() : TPVariableInfo [] = proxy.Execute [|"whos"|] :?> string |> parseWhos |> Array.map TypeConverters.constructTypeProviderVariableInfo
     member t.GetVariableInfo name : TPVariableInfo option = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.map TypeConverters.constructTypeProviderVariableInfo |> Array.tryFind (fun _ -> true)
 
@@ -86,8 +87,9 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.SetVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle option =
         // TODO: Proper Conversions
         let overwrite = defaultArg overwrite false
+        //let vtype = if value = null then failwith (sprintf "Cannot set %s to null" name) else value.GetType()
         // Quick check to see if the type is convertable (some types may actually work but be blocked by this)
-        do TypeConverters.getMatlabTypeFromDotNetSig (value.GetType()) |> ignore
+        //do TypeConverters.getMatlabTypeFromDotNetSig vtype |> ignore
         let var_doesnt_exist = t.GetVariableInfo(name).IsNone
         if overwrite || var_doesnt_exist then
             proxy.PutWorkspaceData name value
@@ -122,17 +124,17 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     /// Note: Will create temporary variables with random names on the matlab side
     member t.CallFunctionWithHandles (name: string, outArgNames: string [], args: obj []) : IMatlabVariableHandle [] = 
         // Push non-handle variables to matlab, and keep track of which were pushed just for this function
-        let currentVars = lazy (t.GetVariableInfos() |> Array.map (fun vi -> vi.MatlabVariableInfo.Name))
+        let currentVars = lazy (t.GetMatlabVariableInfos() |> Array.map (fun vi -> vi.Name))
         let inArgs =
             [| for arg in args do 
-                    yield  match arg with 
-                           | :? IMatlabVariableHandle as h -> h, false
-                           | o -> 
-                                let varname = getSafeRandomVariableName (currentVars.Force()) 
-                                // Side Effect: Sets variables matlab side, be sure to delete them after
-                                match t.SetVariable(varname, o) with
-                                | Some (handle) -> handle, true 
-                                | None -> failwith (sprintf "Variable with this name already exists: %s" varname)
+                match arg with 
+                | :? IMatlabVariableHandle as h -> yield h, false
+                | o -> 
+                    let varname = getSafeRandomVariableName (currentVars.Force()) 
+                    // Side Effect: Sets variables matlab side, be sure to delete them after
+                    match t.SetVariable(varname, o) with
+                    | Some (handle) -> yield handle, true 
+                    | None -> failwith (sprintf "Variable with this name already exists: %s" varname)
             |]   
 
         // Generate call text
@@ -146,9 +148,9 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             try 
                 let res = proxy.Execute([|formattedCall|]) :?> string 
                 // Fail if things didn't work out
-                if res.Trim().StartsWith("??? Error") then raise <| MatlabErrorException(res) 
+                if res.Trim().StartsWith("??? Error") then failwith (sprintf "Formatted call (%s) gave the following error (%s)" formattedCall res) //raise <| MatlabErrorException(res) 
                 res
-            finally 
+            finally  
                 // Delete inargs variables that were generated just for this call
                 for arg, deleteMe in inArgs do
                     if deleteMe then try arg.Dispose() with _ -> ()

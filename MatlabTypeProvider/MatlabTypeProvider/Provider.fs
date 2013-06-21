@@ -75,8 +75,13 @@ module SimpleProviderHelpers =
                                             if hasVarargin then arrArgs.[arrArgs.Length - 1] else Quotations.Expr.NewArray(typeof<obj>, [])
 
                                         let namedInArgs = Quotations.Expr.NewArray(typeof<obj>, castValues)
-                                        <@@ 
-                                            MatlabInterface.executor.CallFunctionWithValues(name, numout, (%%namedInArgs : obj[]), (%%varInArgs : obj[]), hasVarargout) 
+                                        <@@                                            
+                                            let vettedInArgs = 
+                                                let namedInArgs = (%%namedInArgs : obj[])
+                                                match namedInArgs |> Array.tryFindIndex (fun e -> e = null) with
+                                                | Some nullIdx -> namedInArgs.[0 .. nullIdx - 1]
+                                                | None -> namedInArgs
+                                            MatlabInterface.executor.CallFunctionWithValues(name, numout, vettedInArgs, (%%varInArgs : obj[]), hasVarargout) 
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm
@@ -84,9 +89,9 @@ module SimpleProviderHelpers =
 
 module LazyProviderHelpers =
 
-    let applyArgsToHandle (handle: IMatlabFunctionHandle, args: obj [], varargsin: obj []) = 
-        let allargs = Array.concat [args; varargsin]
-        handle.Apply(allargs)
+    //let applyArgsToHandle (handle: IMatlabFunctionHandle, args: obj [], varargsin: obj []) = 
+    //    let allargs = Array.concat [args; varargsin]
+    //    handle.Apply(allargs)
     
     let generateFunctionHandlesFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
         let funcParams, hasVarargin = ProviderHelpers.getParamsForFunctionInputs mlfun
@@ -117,8 +122,12 @@ module LazyProviderHelpers =
                                         <@@ 
                                             let finfo =  MatlabInterface.executor.GetFunctionInfoFromName name
                                             let fhandle = MatlabInterface.executor.GetFunctionHandle(finfo)
-
-                                            applyArgsToHandle(fhandle, (%%namedInArgs: obj[]), (%%varInArgs: obj[]))
+                                            let vettedInArgs = 
+                                                let namedInArgs = (%%namedInArgs : obj[])
+                                                match namedInArgs |> Array.tryFindIndex (fun e -> e.GetType() = typeof<System.Reflection.Missing> )with
+                                                | Some nullIdx -> namedInArgs.[0 .. nullIdx - 1]
+                                                | None -> Array.append namedInArgs (%%varInArgs: obj[])
+                                            fhandle.Apply(vettedInArgs)
                                         @@>)
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm
