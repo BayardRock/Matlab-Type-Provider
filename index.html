@@ -75,12 +75,6 @@ let xFromMatlab = Vars.X
 let res = Toolboxes.``matlab\elfun``.nthroot(6.0, 2.0)
 </code></pre>
 
-<p>Varargin and varargout parameters are treated as arrays, and all built-in functions are treated as varargin/varargout. </p>
-
-<pre><code>open SimpleMatlabProvider
-let [| res |] = Toolboxes.``matlab\elfun``.cos([|0.0|]) 
-</code></pre>
-
 <h2>
 <a name="the-lazy-matlab-provider" class="anchor" href="#the-lazy-matlab-provider"><span class="octicon octicon-link"></span></a>The Lazy Matlab Provider</h2>
 
