@@ -89,10 +89,6 @@ module SimpleProviderHelpers =
 
 module LazyProviderHelpers =
 
-    //let applyArgsToHandle (handle: IMatlabFunctionHandle, args: obj [], varargsin: obj []) = 
-    //    let allargs = Array.concat [args; varargsin]
-    //    handle.Apply(allargs)
-    
     let generateFunctionHandlesFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
         let funcParams, hasVarargin = ProviderHelpers.getParamsForFunctionInputs mlfun
 

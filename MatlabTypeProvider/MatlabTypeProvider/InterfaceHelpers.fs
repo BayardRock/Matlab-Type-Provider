@@ -70,7 +70,10 @@ module MatlabFunctionHelpers =
                 //| None -> ()
         }        
 
-    let toolboxesFromPaths (matlabPath: string) (searchPaths: string seq) (functionInfoBuilder: string -> MatlabFunctionInfo) = 
+    let nestPaths (searchPaths: string list) =
+        searchPaths |> List.sort
+
+    let toolboxesFromPaths (matlabPath: string) (searchPaths: string seq) (pathTofunctionInfo: string -> MatlabFunctionInfo) = 
         seq {
             let toolboxPath = Path.Combine(matlabPath, "toolbox")
             let userIdx = ref 0
@@ -86,7 +89,7 @@ module MatlabFunctionHelpers =
                         "User" + (string !userIdx), None
                 let functionInfos = 
                     searchPathForFunctionFiles searchPath 
-                    |> Seq.map (fun path -> functionInfoBuilder path)
+                    |> Seq.map (fun path -> pathTofunctionInfo path)
 
                 yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = functionInfos }
         }

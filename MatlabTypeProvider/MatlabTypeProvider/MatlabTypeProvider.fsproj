@@ -46,6 +46,7 @@
     <Compile Include="InterfaceHelpers.fs" />
     <Compile Include="MatlabInterface.fs" />
     <Compile Include="Provider.fs" />
+    <Compile Include="LazyMatlab.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.VisualBasic" />

@@ -120,12 +120,3 @@ let EGT7<'a,'b,'c,'d,'e,'f,'g> (result: IMatlabAppliedFunctionHandle) = let [| r
 let EGT8<'a,'b,'c,'d,'e,'f,'g,'h> (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8 |] = result.ExecuteAndRetrieve(8) in r1 :?> 'a, r2 :?> 'b, r3 :?> 'c, r4 :?> 'd, r5 :?> 'e, r6 :?> 'f, r7 :?> 'g, r8 :?> 'h
 /// These helpers allow you to execute and split out the results easily, getting the actual values and deleting the temporary matlab-side variables
 let EGT9<'a,'b,'c,'d,'e,'f,'g,'h,'i> (result: IMatlabAppliedFunctionHandle) = let [| r1; r2; r3; r4; r5; r6; r7; r8; r9 |] = result.ExecuteAndRetrieve(9) in r1 :?> 'a, r2 :?> 'b, r3 :?> 'c, r4 :?> 'd, r5 :?> 'e, r6 :?> 'f, r7 :?> 'g, r8 :?> 'h, r9 :?> 'i 
-
-
-//
-// This is a computation expression to avoid dealing with the matlab types
-//
-//
-//type MatlabBuilder () =
-//    member t.Bind(comp, func) = () 
-//    member t.YieldFrom(expr) = ()
