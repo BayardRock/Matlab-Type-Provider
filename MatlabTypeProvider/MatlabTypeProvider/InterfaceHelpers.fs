@@ -54,45 +54,75 @@ module MatlabFunctionHelpers =
     open FSMatlab.FunctionParsing
 
     let fileToFunctionInfo (fullPath: string) : MatlabFunctionInfo option =
-        //let genEmptyFunc () = { Name = Path.GetFileNameWithoutExtension(fullPath) ; InParams = [ "varargin" ] ; OutParams = [ "varargout" ] ; Path = fullPath }
         try 
             match StringWindow(File.ReadAllText(fullPath), 0u) |> findFunc |> Option.map (parseFunDecl) with
             | Some (name, inparams, outparams) -> Some { Name = name; InParams = inparams; OutParams = outparams; Path = Some fullPath }
-            | None -> None //genEmptyFunc () 
-        with ex -> None //genEmptyFunc ()
+            | None -> None 
+        with ex -> None
 
     let searchPathForFunctionFiles (searchPath: string) : string seq =
         seq {                                         
             for file in Directory.EnumerateFiles(searchPath, "*.m") do
                 yield Path.Combine(searchPath, file)
-                //match pathToFunctionInfo fullPath with 
-                //| Some (fi) -> yield fi 
-                //| None -> ()
-        }        
+        }
 
-    let nestPaths (searchPaths: string list) =
-        searchPaths |> List.sort
+    let rec decomposePath (root: string) (path: string) =
+        [
+            if path.StartsWith root && not (path = root) then
+                let rmpath = path.Remove(0, root.Length + 1) in 
+                    yield! rmpath.Split([|Path.DirectorySeparatorChar|], StringSplitOptions.RemoveEmptyEntries)
+                           |> Seq.scan (fun st e -> st + Path.DirectorySeparatorChar.ToString() + e) root
+                           |> Seq.skip 1
+            else yield path
+        ]
 
-    let toolboxesFromPaths (matlabPath: string) (searchPaths: string seq) (pathTofunctionInfo: string -> MatlabFunctionInfo) = 
-        seq {
-            let toolboxPath = Path.Combine(matlabPath, "toolbox")
+    let toolboxesFromPaths (matlabPath: string) (pathTofunctionInfo: string -> MatlabFunctionInfo) (inPaths: string seq) =
+        let toolboxPath = Path.Combine(matlabPath, "toolbox")
+
+        let inpaths = inPaths |> Set.ofSeq
+        let searchPaths = 
+            inPaths |> Seq.toList |> List.sort |> List.collect (decomposePath toolboxPath) 
+            |> Seq.filter (fun str -> not <| String.IsNullOrWhiteSpace(str))
+            |> Set.ofSeq |> Set.toSeq
+        [
+
             let userIdx = ref 0
             for searchPath in searchPaths do
                 let name, helpname = 
                     if searchPath.StartsWith(toolboxPath) then // Actual Matlab Toolbox
                         let helpname = searchPath.Remove(0, toolboxPath.Length + 1)
-                        let name = helpname.Replace(Path.PathSeparator, '_')
+                        let lidx = searchPath.LastIndexOf(Path.DirectorySeparatorChar)
+                        let name = searchPath.Substring(lidx + 1)
                         name, Some helpname
                     else // User Defined "Toolbox"
                         // TODO: Find a better way to name user toolboxes
                         do userIdx := !userIdx + 1
                         "User" + (string !userIdx), None
                 let functionInfos = 
-                    searchPathForFunctionFiles searchPath 
-                    |> Seq.map (fun path -> pathTofunctionInfo path)
+                    if inpaths.Contains searchPath then
+                        searchPathForFunctionFiles searchPath 
+                        |> Seq.map (fun path -> pathTofunctionInfo path)
+                    else Seq.empty
 
-                yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = functionInfos }
-        }
+                yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = functionInfos; Toolboxes = []}
+        ]
+
+
+    let nestAllToolboxes (tbIn: MatlabToolboxInfo list) = 
+        let rec nestToolbox (mtis: MatlabToolboxInfo list) (parent: MatlabToolboxInfo) =
+            match mtis with
+            | inh :: inresti when inh.Path.StartsWith(parent.Path) -> 
+                let inrest, nparent = nestToolbox inresti inh
+                nestToolbox inrest { parent with Toolboxes = nparent :: parent.Toolboxes }
+            | rest -> rest, parent
+        let rec nestToolboxes (mtisIn: MatlabToolboxInfo list) = 
+            [
+                match mtisIn with
+                | h :: resti -> match nestToolbox resti h with
+                                | resto, parent -> yield parent; yield! nestToolboxes resto
+                | [] -> ()
+            ]
+        tbIn |> List.sortBy (fun tb -> tb.Path) |> nestToolboxes      
 
 module MatlabCallHelpers = 
     open System

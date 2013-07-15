@@ -51,6 +51,7 @@ type MatlabToolboxInfo = {
         Path: string
         HelpName: string option
         Funcs: MatlabFunctionInfo seq
+        Toolboxes: MatlabToolboxInfo list
     }
 
 type IMatlabVariableHandle = 

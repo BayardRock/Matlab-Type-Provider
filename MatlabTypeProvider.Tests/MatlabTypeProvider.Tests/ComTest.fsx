@@ -195,3 +195,16 @@ let res = proxy.Feval "nargin" 1 [|"cos"|]
 exec.GetFunctionInfoFromName("cos")
 exec.GetFunctionNumInputArgs("cos")
 exec.GetFunctionNumOutputArgs("cos")
+
+//
+// Fancy new nesting
+// 
+
+let tbs = exec.GetToolboxes()
+
+open FSMatlab.InterfaceTypes
+open InterfaceHelpers.MatlabFunctionHelpers   
+
+let toolboxes = exec.GetToolboxes() |> Seq.toList |> List.sortBy (fun tb -> tb.Path)
+
+toolboxes |> Seq.toList |> nestAllToolboxes 

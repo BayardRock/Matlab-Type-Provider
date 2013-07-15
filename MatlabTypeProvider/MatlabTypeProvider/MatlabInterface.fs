@@ -68,7 +68,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             | Some fi -> fi 
             | None -> t.GetFunctionInfoFromName(System.IO.Path.GetFileNameWithoutExtension(path))
 
-        MatlabFunctionHelpers.toolboxesFromPaths matlabRoot searchPaths functionBuilder
+        MatlabFunctionHelpers.toolboxesFromPaths matlabRoot functionBuilder searchPaths
 
     member t.GetFunctionHandle (funcInfo: MatlabFunctionInfo) =
         let fexecNamed (inargs: obj []) (outargs: string []) = t.CallFunctionWithHandles(funcInfo.Name, outargs, inargs)
