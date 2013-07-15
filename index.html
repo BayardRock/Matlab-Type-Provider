@@ -85,6 +85,7 @@ let x_val_typed : double = x.Get() // type is double
 <li>The current communication interface is COM, and I expect this puts a limit on the size of things.  I hope to be moving to the dll interface once I get things going a bit more.  In the long run I'd very much like to be able to support MacOS and Linux. </li>
 <li>The type provider does not currently take any static parameters.  I'd like it to support at least the ability to select the way to contact Matlab and also to execute a specified script to bind variables.</li>
 <li>It would be ideal to be able to compose up computations with functions and operators in F# and then have the entire call be executed in Matlab.  This may take some doing, but I believe it's completely possible. </li>
+<li>Octave is not supported. If anyone would like to provide me with a wrapper assembly I would happily extend the type provider to support it. </li>
 </ul><h3>
 <a name="planned-limitations" class="anchor" href="#planned-limitations"><span class="octicon octicon-link"></span></a>Planned Limitations</h3>
 
