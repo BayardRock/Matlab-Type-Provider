@@ -62,7 +62,7 @@
 
 <p>With the Matlab Type Provider you work primarily with handles to functions and variables. Standard .NET values are supported interchangeably as well in order to make marshaling data across a simple matter.  Working this way prevents a lot of extra pushing data back-and-forth from Matlab when doing complex combinations of functions.  You must also specify exactly how many output parameters you would like.  This is because Matlab functions may opt not to calculate unused results.</p>
 
-<pre><code>open LazyMatlabProvider
+<pre><code>open FSMatlab
 open FSMatlab.InterfaceTypes
 let m,n = Toolboxes.matlab.elmat.size([|1.0;2.0;3.0;4.0;5.0|]) |&gt; EGT2&lt;double,double&gt;
 </code></pre>
