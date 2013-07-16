@@ -80,11 +80,10 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetVariableInfos() : TPVariableInfo [] = proxy.Execute [|"whos"|] :?> string |> parseWhos |> Array.map TypeConverters.constructTypeProviderVariableInfo
     member t.GetVariableInfo name : TPVariableInfo option = proxy.Execute [|"whos " + name|] :?> string |> parseWhos |> Array.map TypeConverters.constructTypeProviderVariableInfo |> Array.tryFind (fun _ -> true)
 
-    member t.OverwriteVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle =
-        proxy.PutWorkspaceData name value
-        t.GetVariableHandle(name)
+    member t.UnsafeOverwriteVariable(name: string, value: obj) : MatlabVariableHandle =
+        t.SetVariable(name, value, overwrite = true).Value
                     
-    member t.SetVariable(name: string, value: obj, ?overwrite: bool) : IMatlabVariableHandle option =
+    member t.SetVariable(name: string, value: obj, ?overwrite: bool) : MatlabVariableHandle option =
         // TODO: Proper Conversions
         let overwrite = defaultArg overwrite false
         let vtype = if value = null then failwith (sprintf "Cannot set %s to null" name) else value.GetType()
@@ -120,17 +119,25 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let ret = proxy.Feval "nargout" 1 [| name |] |> (fun (a:obj) -> (a :?> obj[]).[0] :?> float) |> int
         abs(ret), ret < 0
 
+    member t.ExecuteString (formattedCall: string) =
+        let res = proxy.Execute([|formattedCall|]) :?> string 
+        // Fail if things didn't work out
+        if res.Trim().StartsWith("??? Error") then raise <| MatlabErrorException (sprintf "Formatted call (%s) gave the following error (%s)" formattedCall res) 
+        res 
+
+    member t.GenerateSafeVariableName () =
+        getRandomVariableNames |> Seq.find (fun vn -> (t.GetVariableInfo vn).IsNone)
+
     /// Call a function with either MatlabVariableHandles or Objs, Returns a handle
     /// Note: Will create temporary variables with random names on the matlab side
-    member t.CallFunctionWithHandles (name: string, outArgNames: string [], args: obj []) : IMatlabVariableHandle [] = 
+    member t.CallFunctionWithHandles (name: string, outArgNames: string [], args: obj []) : MatlabVariableHandle [] = 
         // Push non-handle variables to matlab, and keep track of which were pushed just for this function
-        let currentVars = lazy (t.GetMatlabVariableInfos() |> Array.map (fun vi -> vi.Name))
         let inArgs =
             [| for arg in args do 
                 match arg with 
-                | :? IMatlabVariableHandle as h -> yield h, false
+                | :? MatlabVariableHandle as h -> yield h, false
                 | o -> 
-                    let varname = getSafeRandomVariableName (currentVars.Force()) 
+                    let varname = t.GenerateSafeVariableName()
                     // Side Effect: Sets variables matlab side, be sure to delete them after
                     match t.SetVariable(varname, o) with
                     | Some (handle) -> yield handle, true 
@@ -145,39 +152,20 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
         // Make call
         let res = 
-            try 
-                let res = proxy.Execute([|formattedCall|]) :?> string 
-                // Fail if things didn't work out
-                if res.Trim().StartsWith("??? Error") then raise <| MatlabErrorException (sprintf "Formatted call (%s) gave the following error (%s)" formattedCall res) 
-                res
+            try t.ExecuteString (formattedCall)
             finally  
                 // Delete inargs variables that were generated just for this call
                 for arg, deleteMe in inArgs do
-                    if deleteMe then try arg.Dispose() with _ -> ()
+                    if deleteMe then try arg.DeleteVariable() with _ -> ()
 
         // Build result handles
         [| for outArgName in outArgNames do yield t.GetVariableHandle(outArgName) |]
 
     /// Just like the other CallFunctionWithHandles but will use randomized result value names 
-    member t.CallFunctionWithHandles (name: string, numout: int, args: obj []) : IMatlabVariableHandle [] = 
+    member t.CallFunctionWithHandles (name: string, numout: int, args: obj []) : MatlabVariableHandle [] = 
         let currentVars = lazy (t.GetVariableInfos() |> Array.map (fun vi -> vi.Name))
-        let outargs = Array.init numout (fun _ -> getSafeRandomVariableName (currentVars.Force()))
+        let outargs = Array.init numout (fun _ -> t.GenerateSafeVariableName())
         t.CallFunctionWithHandles(name, outargs, args)
-
-    /// Old style, will transform output appropriately but no handles allowed 
-    member t.CallFunctionWithValues (name: string, numout: int, namedArgs: obj [], varArgs: obj [], hasVarArgsOut: bool) : obj = 
-        let actualArgs = Array.append namedArgs varArgs
-        //failwith (sprintf "%s: %A (%s) (%s) -> %i" name actualArgs (actualArgs.GetType().ToString()) (actualArgs.GetType().GetElementType().ToString()) numout)
-        match proxy.Feval name numout actualArgs with 
-        | :? (obj []) as arrayRes when not hasVarArgsOut -> 
-            match arrayRes |> Array.map correctFEvalResult with
-            | arrayRes when arrayRes.Length = 1 -> arrayRes.[0]
-            | arrayRes when arrayRes.Length <= 8 ->
-                let tupleType = Microsoft.FSharp.Reflection.FSharpType.MakeTupleType(Array.create arrayRes.Length typeof<obj>)
-                Microsoft.FSharp.Reflection.FSharpValue.MakeTuple (arrayRes, tupleType)
-            | arrayRes -> arrayRes :> obj       
-        | :? (obj []) as arrayRes when hasVarArgsOut -> arrayRes |> Array.map correctFEvalResult :> obj
-        | unexpected -> failwith (sprintf "Unexpected type returned from Feval: %s" (unexpected.GetType().ToString()))
 
     member t.GetVariableContents (vname: string, vtype: MatlabType) = 
         let vi = 
@@ -212,4 +200,13 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             carr :> obj   
         | _ -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" vtype)
 
-
+    member t.ExecuteExpression (expr: IMatlabExpressionable) =
+        let rec eval (expr: MatlabExpression) = 
+            match expr with 
+            | Var (v) -> v
+            | InfixOp (op, l, r) -> String.Format("({0} {1} {2})", (eval l), op, (eval r))
+        let execstr = eval (expr.ToExpression()) 
+        let outvarname = t.GenerateSafeVariableName()
+        let res = t.ExecuteString(String.Format("{0} = {1}", outvarname, execstr))
+        use vhandle = t.GetVariableHandle outvarname
+        vhandle.GetUntyped()

@@ -39,6 +39,7 @@
     <Compile Include="TestHelpers.fs" />
     <Compile Include="ParserTests.fs" />
     <Compile Include="LazyMatlabFunctionTests.fs" />
+    <Compile Include="LazyMatlabOpsTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="MatlabTypeProvider">

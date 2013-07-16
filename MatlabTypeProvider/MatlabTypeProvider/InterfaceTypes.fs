@@ -54,32 +54,65 @@ type MatlabToolboxInfo = {
         Toolboxes: MatlabToolboxInfo list
     }
 
-type IMatlabVariableHandle = 
-    inherit IDisposable
-    abstract member Dispose: unit -> unit
-    /// The name of this variable in Matlab
-    abstract member Name : string
-    /// Retrieves the contents of this variable from Matlab, statically parameterized by type
-    abstract member GetUntyped : unit -> obj
-    /// Actual information on the variable as of it's state when this IMatlabVariableHandle was created
-    abstract member Info: TPVariableInfo
+type IMatlabExpressionable =
+    abstract member ToExpression: unit -> MatlabExpression
 
-type IMatlabFunctionHandle = 
-    abstract member Name : string
-    /// Array can contain a mix of translatable values and variable handles
-    abstract member Apply : obj [] -> IMatlabAppliedFunctionHandle
-    abstract member Info : MatlabFunctionInfo
+and MatlabExpression = 
+     | Var of string
+     | InfixOp of string * MatlabExpression * MatlabExpression
+     with
+        interface IMatlabExpressionable with member t.ToExpression() = t
+        static member (+) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp("+", a, b.ToExpression())
+        static member (-) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp("-", a, b.ToExpression())
+        static member (*) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp("*", a, b.ToExpression())
+        static member (/) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp("/", a, b.ToExpression())
+        static member (.*) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp(".*", a, b.ToExpression())
+        static member (./) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp("./", a, b.ToExpression())
+        static member (.^) (a: MatlabExpression, b: IMatlabExpressionable) = InfixOp(".^", a, b.ToExpression())
 
-and IMatlabAppliedFunctionHandle =
-    abstract member Name : string
-    /// Executes the function specifying the given output variable names and returns handles to these outputs
-    abstract member Execute : string [] -> IMatlabVariableHandle []
-    /// Executes the function specifying N outputs which will be randomly named and returned
-    abstract member Execute : int -> IMatlabVariableHandle []
-    abstract member Info : MatlabFunctionInfo
 
-type MatlabExpression = 
-    | Var of IMatlabVariableHandle
-    // The string represents the op to be used
-    | InfixOp of string * MatlabExpression * MatlabExpression
-    | Function of IMatlabFunctionHandle * MatlabExpression []
+and MatlabVariableHandle =
+    {
+        /// Deletes this variable inside of Matlab.  Will be called on dispose. 
+        DeleteVariable: unit -> unit
+        /// The name of this variable in Matlab
+        Name: string
+        /// Retrieves the contents of this variable from Matlab, statically parameterized by type
+        GetUntyped : unit -> obj
+        /// Actual information on the variable as of it's state when this IMatlabVariableHandle was created
+        Info: TPVariableInfo
+    }
+    member t.Get () : 'a =  t.GetUntyped() :?> 'a
+    interface IDisposable with member t.Dispose() = t.DeleteVariable()
+    interface IMatlabExpressionable with member t.ToExpression() = Var(t.Name)
+    static member (+) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp("+", Var(a.Name), b.ToExpression())
+    static member (-) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp("-", Var(a.Name), b.ToExpression())
+    static member (*) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp("*", Var(a.Name), b.ToExpression())
+    static member (/) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp("/", Var(a.Name), b.ToExpression())
+    static member (.*) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp(".*", Var(a.Name), b.ToExpression())
+    static member (./) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp("./", Var(a.Name), b.ToExpression())
+    static member (.^) (a: MatlabVariableHandle, b: IMatlabExpressionable) = InfixOp(".^", Var(a.Name), b.ToExpression())
+
+/// Represents a Matlab Function
+and MatlabFunctionHandle = 
+    {
+        /// The name of the matlab function as called
+        Name: string
+        /// Array can contain a mix of translatable values and variable handles
+        Apply: obj [] -> MatlabAppliedFunctionHandle
+        /// Reflected Matlab Function Information 
+        Info: MatlabFunctionInfo
+    }
+
+/// Represents a Matlab Function with arguments applied
+and MatlabAppliedFunctionHandle = 
+    {
+        /// The name of the matlab function as called
+        Name: string
+        /// Executes the function specifying the given output variable names and returns handles to these outputs
+        ExecuteNamed: string [] -> MatlabVariableHandle []
+        /// Executes the function specifying N outputs which will be randomly named and returned
+        ExecuteNumbered: int -> MatlabVariableHandle []
+        /// Reflected Matlab Function Information 
+        Info : MatlabFunctionInfo
+    }

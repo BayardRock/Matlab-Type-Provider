@@ -131,13 +131,13 @@ module MatlabCallHelpers =
     
     let processId = lazy (System.Diagnostics.Process.GetCurrentProcess().Id.ToString())
 
-    let getSafeRandomVariableName (currentVariables: string []) =
-        let varNames =  seq {
-                            let procid = processId.Force()
-                            let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
-                            yield System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
-                        }
-        varNames |> Seq.find (fun v -> not <| Array.exists (fun cv -> cv = v) currentVariables)
+    let getRandomVariableNames =
+        seq {
+            let procid = processId.Force()
+            let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
+            yield System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
+        }
+        //varNames |> Seq.find (fun v -> not <| Array.exists (fun cv -> cv = v) currentVariables)
 
     let nullToOption =
         function
@@ -275,26 +275,24 @@ open System.Text
 open MatlabCallHelpers
 
 module RepresentationBuilders =     
-    let getVariableHandleFromVariableInfo (info: TPVariableInfo) (getContents: string -> MatlabType -> obj) (deleteVar: string -> unit) : IMatlabVariableHandle =
+    let getVariableHandleFromVariableInfo (info: TPVariableInfo) (getContents: string -> MatlabType -> obj) (deleteVar: string -> unit) : MatlabVariableHandle =
         let is_disposed = ref false
-        { new IMatlabVariableHandle with
-                member t.Name = info.MatlabVariableInfo.Name 
-                member t.GetUntyped () = getContents info.MatlabVariableInfo.Name  info.MatlabType 
-                member t.Info = info
-                member t.Dispose () = if not !is_disposed then deleteVar info.MatlabVariableInfo.Name
-            interface IDisposable with
-                member t.Dispose () = if not !is_disposed then deleteVar info.MatlabVariableInfo.Name
+        {
+            Name = info.MatlabVariableInfo.Name
+            GetUntyped = fun () -> getContents info.MatlabVariableInfo.Name info.MatlabType 
+            Info = info
+            DeleteVariable = fun () -> if not !is_disposed then deleteVar info.MatlabVariableInfo.Name
         }
 
-    let getFunctionHandleFromFunctionInfo (info: MatlabFunctionInfo) (execFuncNamed: obj[] -> string[] -> IMatlabVariableHandle[]) (execFuncNum: obj[] -> int -> IMatlabVariableHandle[])  : IMatlabFunctionHandle =
-        { new IMatlabFunctionHandle with
-            member t.Name = info.Name
-            member t.Apply (args: obj[]) = 
-                { new IMatlabAppliedFunctionHandle with
-                    member t.Name = info.Name
-                    member t.Execute (outVars: string []) = execFuncNamed args outVars        
-                    member t.Execute (numOutVars: int) = execFuncNum args numOutVars
-                    member t.Info = info 
-                }
-            member t.Info = info 
+    let getFunctionHandleFromFunctionInfo (info: MatlabFunctionInfo) (execFuncNamed: obj[] -> string[] -> MatlabVariableHandle[]) (execFuncNum: obj[] -> int -> MatlabVariableHandle[])  : MatlabFunctionHandle =
+        {
+            Name = info.Name
+            Info = info
+            Apply = fun args -> 
+                        {
+                            Name = info.Name
+                            ExecuteNamed = fun outVarNames -> execFuncNamed args outVarNames
+                            ExecuteNumbered = fun numOutVars -> execFuncNum args numOutVars
+                            Info = info
+                        }
         }

@@ -49,7 +49,7 @@ module LazyProviderHelpers =
         let pm = ProvidedMethod(
                         methodName = mlfun.Name,
                         parameters = funcParams,
-                        returnType = typeof<IMatlabAppliedFunctionHandle>,
+                        returnType = typeof<MatlabAppliedFunctionHandle>,
                         IsStaticMethod = true,
                         InvokeCode = fun args -> 
                                         let functionPath = mlfun.Path
@@ -107,8 +107,8 @@ module LazyProviderHelpers =
 [<TypeProvider>]
 type SimpleMatlabProvider (config: TypeProviderConfig) as this = 
     inherit TypeProviderForNamespaces()
-    let strictRootNamespace = "SimpleMatlab"
-    let lazyRootNamespace = "LazyMatlab"
+    let strictRootNamespace = "FSMatlab"
+    let lazyRootNamespace = "FSMatlab"
     let thisAssembly  = Assembly.GetExecutingAssembly()
 
     let mlKind = "Matlab.Desktop.Application"
