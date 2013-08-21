@@ -40,6 +40,7 @@
     <Compile Include="ParserTests.fs" />
     <Compile Include="LazyMatlabFunctionTests.fs" />
     <Compile Include="LazyMatlabOpsTests.fs" />
+    <Compile Include="MatlabDataSizeTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="MatlabTypeProvider">

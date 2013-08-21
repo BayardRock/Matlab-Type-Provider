@@ -82,17 +82,51 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 
     member t.UnsafeOverwriteVariable(name: string, value: obj) : MatlabVariableHandle =
         t.SetVariable(name, value, overwrite = true).Value
-                    
+
+    member private t.SetSimpleVariable(name: string, value: obj) : MatlabVariableHandle =
+        proxy.PutWorkspaceData name value
+        t.GetVariableHandle(name)   
+
+    member private t.SetLargeMatrix(name: string, value: obj) : MatlabVariableHandle =
+        let max_doubles = 8388608 / 8 // 8mb of 8-byte doubles
+        let m = value :?> double [,]
+        let m_height = m.GetLength(0)
+        let m_width = m.GetLength(1)
+        let m_rows_per_iter = max_doubles / m_width
+        let iters = m_height / m_rows_per_iter // int division, rounds down
+        if iters = 0 then t.SetSimpleVariable(name, value)
+        else
+            let tmpName = t.GenerateSafeVariableName () 
+            let varName = t.GenerateSafeVariableName () 
+            proxy.Execute([|varName + " = [];"|]) |> ignore
+            let vertcatStr = varName + " = vertcat(" + varName + "," + tmpName + ");"
+            for i = 0 to iters - 1 do
+                let sidx = m_rows_per_iter * i
+                let eidx = m_rows_per_iter * (i + 1) - 1
+                let slice = m.[sidx..eidx,*]
+                let th = t.SetSimpleVariable(tmpName, slice)
+                try proxy.Execute([|vertcatStr|]) |> ignore
+                finally th.DeleteVariable()
+            let sidx = iters * m_rows_per_iter
+            let slice = m.[sidx..,*]
+            let th = t.SetSimpleVariable(tmpName, slice)
+            try proxy.Execute([|vertcatStr|]) |> ignore
+            finally th.DeleteVariable()
+            t.GetVariableHandle(varName)
+
+
     member t.SetVariable(name: string, value: obj, ?overwrite: bool) : MatlabVariableHandle option =
         // TODO: Proper Conversions
         let overwrite = defaultArg overwrite false
         let vtype = if value = null then failwith (sprintf "Cannot set %s to null" name) else value.GetType()
         // Quick check to see if the type is convertable (some types may actually work but be blocked by this)
-        do TypeConverters.getMatlabTypeFromDotNetSig vtype |> ignore
+        let matlabType = TypeConverters.getMatlabTypeFromDotNetSig vtype
+
         let var_doesnt_exist = t.GetVariableInfo(name).IsNone
         if overwrite || var_doesnt_exist then
-            proxy.PutWorkspaceData name value
-            t.GetVariableHandle(name) |> Some
+            match matlabType with
+            | MatlabType.MMatrix -> t.SetLargeMatrix(name, value) |> Some
+            | _ -> t.SetSimpleVariable(name, value) |> Some
         else None
 
     member t.DeleteVariable(name: string) : unit = 
@@ -125,7 +159,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         if res.Trim().StartsWith("??? Error") then raise <| MatlabErrorException (sprintf "Formatted call (%s) gave the following error (%s)" formattedCall res) 
         res 
 
-    member t.GenerateSafeVariableName () =
+    member t.GenerateSafeVariableName () : string =
         getRandomVariableNames |> Seq.find (fun vn -> (t.GetVariableInfo vn).IsNone)
 
     /// Call a function with either MatlabVariableHandles or Objs, Returns a handle

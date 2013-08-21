@@ -39,7 +39,9 @@ module TypeConverters =
 
     let constructTypeProviderVariableInfo (mvi: MatlabVariableInfo) =
         let mltype = getMatlabTypeFromMatlabSig mvi
-        let dntype = getDotNetType mltype
+        let dntype = 
+            try getDotNetType mltype
+            with ex -> failwith (ex.Message + ": " + mvi.Class + " of " + mvi.Size.ToString())
         {
             MatlabVariableInfo = mvi
             MatlabType = mltype

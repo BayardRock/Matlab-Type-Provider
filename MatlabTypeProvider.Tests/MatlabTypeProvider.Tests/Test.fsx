@@ -1,7 +1,5 @@
 ﻿
-#r """..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Debug\MatlabTypeProvider.dll"""
-
-open SimpleMatlab
+open FSMatlab
 
 let x = Vars.x
 let m = Vars.m
