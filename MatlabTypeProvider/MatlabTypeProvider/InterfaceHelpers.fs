@@ -12,18 +12,10 @@ module TypeConverters =
         | { Size = [1; _]; Class = "double" }                            -> MatlabType.MVector
         | { Size = [_; _]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexMatrix
         | { Size = [_; _]; Class = "double" }                            -> MatlabType.MMatrix
+        | { Size = [1; 1]; Class = "logical" }                           -> MatlabType.MLogical
+        | { Size = [1; _]; Class = "logical" }                           -> MatlabType.MLogicalVector
+        | { Size = [_; _]; Class = "logical" }                           -> MatlabType.MLogicalMatrix
         | _ -> MatlabType.MUnexpected
-
-    let getMatlabTypeFromDotNetSig =
-        function
-        | t when t = typeof<string> -> MatlabType.MString
-        | t when t = typeof<double> -> MatlabType.MDouble
-        | t when t = typeof<double []> -> MatlabType.MVector
-        | t when t = typeof<double [,]> -> MatlabType.MMatrix
-        | t when t = typeof<System.Numerics.Complex> -> MatlabType.MComplexDouble
-        | t when t = typeof<System.Numerics.Complex []> -> MatlabType.MComplexVector
-        | t when t = typeof<System.Numerics.Complex [,]> -> MatlabType.MComplexMatrix 
-        | t -> failwith (sprintf "Unsupported Variable Type: %s" (t.ToString()))
 
     let private getDotNetType = 
         function
@@ -33,7 +25,10 @@ module TypeConverters =
         | MatlabType.MMatrix            -> typeof<double [,]> 
         | MatlabType.MComplexDouble     -> typeof<System.Numerics.Complex>
         | MatlabType.MComplexVector     -> typeof<System.Numerics.Complex []>
-        | MatlabType.MComplexMatrix     -> typeof<System.Numerics.Complex [,]>      
+        | MatlabType.MComplexMatrix     -> typeof<System.Numerics.Complex [,]>  
+        | MatlabType.MLogical           -> typeof<bool>
+        | MatlabType.MLogicalVector     -> typeof<bool []>
+        | MatlabType.MLogicalMatrix     -> typeof<bool [,]>
         | MatlabType.MUnexpected -> failwith (sprintf "Unsupported Variable Type")
         | _ -> failwith "Unexpected MatlabTypes enumeration value"
 
