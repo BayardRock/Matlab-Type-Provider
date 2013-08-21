@@ -12,7 +12,10 @@ type MatlabType =
     | MComplexDouble = 4
     | MComplexVector = 5
     | MComplexMatrix = 6
-    | MUnexpected = 7
+    | MLogical = 7
+    | MLogicalMatrix = 8
+    | MLogicalVector = 9
+    | MUnexpected = 10
 
 type MatlabMethodInfo = {
         Name: string
