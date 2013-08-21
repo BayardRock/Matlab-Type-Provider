@@ -208,3 +208,13 @@ open InterfaceHelpers.MatlabFunctionHelpers
 let toolboxes = exec.GetToolboxes() |> Seq.toList |> List.sortBy (fun tb -> tb.Path)
 
 toolboxes |> Seq.toList |> nestAllToolboxes 
+
+//
+// Logicals Test
+//
+
+let v = proxy.GetVariable("y")
+let v2 = proxy.GetVariable("ys")
+let v3 = proxy.GetVariable("yss")
+let v4 = proxy.GetVariable("ysss")
+
