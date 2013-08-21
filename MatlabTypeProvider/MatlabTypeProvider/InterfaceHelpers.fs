@@ -3,7 +3,7 @@
 open FSMatlab.InterfaceTypes
 
 module TypeConverters =
-    let private getMatlabTypeFromMatlabSig =
+    let getMatlabTypeFromMatlabSig =
         function
         | { Size = [1; _]; Class = "char"   }                            -> MatlabType.MString
         | { Size = [1; 1]; Class = "double"; Attributes = [ "complex" ]} -> MatlabType.MComplexDouble
@@ -17,7 +17,7 @@ module TypeConverters =
         | { Size = [_; _]; Class = "logical" }                           -> MatlabType.MLogicalMatrix
         | _ -> MatlabType.MUnexpected
 
-    let private getDotNetType = 
+    let getDotNetType = 
         function
         | MatlabType.MString            -> typeof<string>
         | MatlabType.MDouble            -> typeof<double>
@@ -29,8 +29,8 @@ module TypeConverters =
         | MatlabType.MLogical           -> typeof<bool>
         | MatlabType.MLogicalVector     -> typeof<bool []>
         | MatlabType.MLogicalMatrix     -> typeof<bool [,]>
-        | MatlabType.MUnexpected -> failwith (sprintf "Unsupported Variable Type")
-        | _ -> failwith "Unexpected MatlabTypes enumeration value"
+        | MatlabType.MUnexpected        -> typeof<obj>
+        | unexpectedType -> failwith ("Unspecified MatlabTypes enumeration value: " + System.Enum.GetName(typeof<MatlabType>, unexpectedType))
 
     let constructTypeProviderVariableInfo (mvi: MatlabVariableInfo) =
         let mltype = getMatlabTypeFromMatlabSig mvi
@@ -272,11 +272,11 @@ open System.Text
 open MatlabCallHelpers
 
 module RepresentationBuilders =     
-    let getVariableHandleFromVariableInfo (info: TPVariableInfo) (getContents: string -> MatlabType -> obj) (deleteVar: string -> unit) : MatlabVariableHandle =
+    let getVariableHandleFromVariableInfo (info: TPVariableInfo) (getContents: string -> obj) (deleteVar: string -> unit) : MatlabVariableHandle =
         let is_disposed = ref false
         {
             Name = info.MatlabVariableInfo.Name
-            GetUntyped = fun () -> getContents info.MatlabVariableInfo.Name info.MatlabType 
+            GetUntyped = fun () -> getContents info.MatlabVariableInfo.Name
             Info = info
             DeleteVariable = fun () -> if not !is_disposed then deleteVar info.MatlabVariableInfo.Name
         }

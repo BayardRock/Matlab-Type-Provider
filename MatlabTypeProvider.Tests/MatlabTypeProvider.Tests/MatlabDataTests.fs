@@ -1,13 +1,34 @@
 ﻿module Matlab.TypeProvider.MatlabDataSize.Tests
 
 open System
-open Xunit
+open System.Numerics
 
+open Xunit
 
 open FSMatlab
 open FSMatlab.InterfaceTypes
 
 open TestHelpers
+
+[<Fact>] 
+let ``supported instance types should round trip`` () =
+    let vs : (obj) list =
+        [
+            // Logical Types
+            true; false; [|true; true; true|]; [|false; false; false|]; (Array2D.create 2 2 false); (Array2D.create 2 2 true);
+            // Floating Point Types
+            0.0; 1.5; [|0.0; 0.0; 0.0|]; [|0.1; 0.2; 0.3|]; (Array2D.create 2 2 0.0); (Array2D.create 2 2 1.5);
+            // Complex Numer Types (Note: Matlab does not accept 0 values)
+            // Note -- Not yet supported: Complex(2.0, 2.0); [|Complex(0.1, 0.2); Complex(3.0,0.4); Complex(5.0,6.0)|]; 
+            (Array2D.create 2 2 (Complex(1.0, 2.0))); 
+        ] 
+    let vsm = vs |> Seq.mapi (fun i v -> i, v)
+    let testPrefix = "typeRoundTripTest"
+    AssertNoVariableChanges (fun _ ->
+        for i, v in vsm do 
+            use handle = Data.UnsafeOverwriteVariable (testPrefix + i.ToString()) v
+            Assert.Equal(v, handle.GetUntyped())
+    )
 
 [<Fact>]
 let ``a large matrix of doubles should set properly`` () =
@@ -15,25 +36,26 @@ let ``a large matrix of doubles should set properly`` () =
     let m_width = 5000
     let largeMatrix = Array2D.create m_height m_width 5.0
     AssertNoVariableChanges (fun _ ->
-        let handle = Data.UnsafeOverwriteVariable "lm" largeMatrix 
+        use handle = Data.UnsafeOverwriteVariable "lm" largeMatrix 
         let size = handle.Info.MatlabVariableInfo.Size
         Assert.Equal(m_height, size.[0])
         Assert.Equal(m_width, size.[1])
-        //let res = FSMatlab.MatlabInterface.executor.Execute("all(all(" + handle.Name + "== 5.0))")
-        //Assert.Equal(1, res.Get())
-        //res.DeleteVariable()
-        handle.DeleteVariable()
+        // assure the correct values
+        use res = FSMatlab.MatlabInterface.executor.Execute("all(all(" + handle.Name + "== 5.0))")
+        Assert.True(res.Get())
     )
 
 [<Fact>]
 let ``a large matrix of complex values should set properly`` () =
     let m_height = 5000
     let m_width = 5000
-    let largeMatrix = Array2D.create m_height m_width (new System.Numerics.Complex(5.0, 5.0))
+    let largeMatrix = Array2D.create m_height m_width (new System.Numerics.Complex(2.0, 3.0))
     AssertNoVariableChanges (fun _ ->
-        let handle = Data.UnsafeOverwriteVariable "lm" largeMatrix 
+        use handle = Data.UnsafeOverwriteVariable "lm" largeMatrix 
         let size = handle.Info.MatlabVariableInfo.Size
         Assert.Equal(m_height, size.[0])
         Assert.Equal(m_width, size.[1])
-        handle.DeleteVariable()
+        // assure the correct values
+        use res = FSMatlab.MatlabInterface.executor.Execute("all(all(" + handle.Name + "== 2+3i))")
+        Assert.True(res.Get())
     )

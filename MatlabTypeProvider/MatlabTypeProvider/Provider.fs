@@ -33,7 +33,7 @@ module SimpleProviderHelpers =
                                 propertyName = var.Name, 
                                 propertyType = var.Type, 
                                 IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name, var.MatlabType) @@>)
+                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name) @@>)
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
                     yield p                   
             ]

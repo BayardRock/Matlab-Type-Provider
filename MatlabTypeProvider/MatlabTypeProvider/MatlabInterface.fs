@@ -15,6 +15,11 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     // Actual Useful Stuff
     //
 
+    member t.Execute(command: string) =
+        let varName = t.GenerateSafeVariableName()
+        do proxy.Execute([|varName + " = " + command + ";"|]) |> ignore
+        t.GetVariableHandle(varName)
+
     member t.GetPackageHelp (pkgName: string) = 
         match proxy.Execute [|MatlabStrings.getHelpString pkgName|] :?> string |> parseHelp pkgName with
         | Some (help) -> help
@@ -87,14 +92,22 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         proxy.PutWorkspaceData name value
         t.GetVariableHandle(name)   
 
-    member private t.SetLargeMatrix(name: string, value: obj) : MatlabVariableHandle =
-        let max_doubles = 8388608 / 8 // 8mb of 8-byte doubles
-        let m = value :?> double [,]
+    member private t.SetMatrix<'T>(name: string, m: 'T [,]) : MatlabVariableHandle =
+        match m :> obj with
+        | :? (Complex [,]) as comp -> 
+            let real = Array2D.init (comp.GetLength(0)) (comp.GetLength(1)) (fun i j -> comp.[i,j].Real)
+            let imag = Array2D.init (comp.GetLength(0)) (comp.GetLength(1)) (fun i j -> comp.[i,j].Imaginary)
+            do proxy.PutFullMatrix(name, real, imag)
+        | _ -> proxy.PutWorkspaceData name m
+        t.GetVariableHandle(name)
+
+    member private t.SetLargeMatrix<'T>(name: string, m: 'T [,]) : MatlabVariableHandle =
+        let max_doubles = 8388608 / (sizeof<'T>) // 8mb at a time
         let m_height = m.GetLength(0)
         let m_width = m.GetLength(1)
         let m_rows_per_iter = max_doubles / m_width
         let iters = m_height / m_rows_per_iter // int division, rounds down
-        if iters = 0 then t.SetSimpleVariable(name, value)
+        if iters = 0 then t.SetMatrix(name, m)
         else
             let tmpName = t.GenerateSafeVariableName () 
             let varName = t.GenerateSafeVariableName () 
@@ -104,28 +117,25 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
                 let sidx = m_rows_per_iter * i
                 let eidx = m_rows_per_iter * (i + 1) - 1
                 let slice = m.[sidx..eidx,*]
-                let th = t.SetSimpleVariable(tmpName, slice)
+                let th = t.SetMatrix(tmpName, slice)
                 try proxy.Execute([|vertcatStr|]) |> ignore
                 finally th.DeleteVariable()
             let sidx = iters * m_rows_per_iter
             let slice = m.[sidx..,*]
-            let th = t.SetSimpleVariable(tmpName, slice)
+            let th = t.SetMatrix(tmpName, slice)
             try proxy.Execute([|vertcatStr|]) |> ignore
             finally th.DeleteVariable()
             t.GetVariableHandle(varName)
 
 
     member t.SetVariable(name: string, value: obj, ?overwrite: bool) : MatlabVariableHandle option =
-        // TODO: Proper Conversions
         let overwrite = defaultArg overwrite false
         let vtype = if value = null then failwith (sprintf "Cannot set %s to null" name) else value.GetType()
-        // Quick check to see if the type is convertable (some types may actually work but be blocked by this)
-        let matlabType = TypeConverters.getMatlabTypeFromDotNetSig vtype
-
         let var_doesnt_exist = t.GetVariableInfo(name).IsNone
         if overwrite || var_doesnt_exist then
-            match matlabType with
-            | MatlabType.MMatrix -> t.SetLargeMatrix(name, value) |> Some
+            match value with
+            | :? (double [,]) as value -> t.SetLargeMatrix(name, value) |> Some
+            | :? (Complex [,]) as value -> t.SetLargeMatrix(name, value) |> Some
             | _ -> t.SetSimpleVariable(name, value) |> Some
         else None
 
@@ -133,7 +143,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         proxy.Execute([|"clear " + name|]) |> ignore
 
     member t.GetVariableHandle(info: TPVariableInfo) =
-        let getFunc name mltype = t.GetVariableContents(name, mltype)
+        let getFunc name = t.GetVariableContents(name)
         let deleteFunc name = t.DeleteVariable(name)
         RepresentationBuilders.getVariableHandleFromVariableInfo info getFunc deleteFunc       
 
@@ -201,12 +211,13 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let outargs = Array.init numout (fun _ -> t.GenerateSafeVariableName())
         t.CallFunctionWithHandles(name, outargs, args)
 
-    member t.GetVariableContents (vname: string, vtype: MatlabType) = 
+    member t.GetVariableContents (vname: string) = 
         let vi = 
             match t.GetVariableInfo(vname) with
             | Some (vi) -> vi
             | None -> failwith (sprintf "Variable %s does not exist" vname)           
         let mvi = vi.MatlabVariableInfo
+        let vtype = vi.MatlabType
 
         match vtype, mvi with
         | MatlabType.MString, _ -> proxy.GetCharArray(vname) :> obj
@@ -231,7 +242,13 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             for i = 0 to sx - 1 do
                 for j = 0 to sy - 1 do
                     carr.[i,j] <- (Complex(real.[i,j], imag.[i,j]))
-            carr :> obj   
+            carr :> obj 
+        | MatlabType.MLogical, _ -> proxy.GetVariable(vname)
+        | MatlabType.MLogicalVector, { Size = [1; sy] } -> 
+            let v = proxy.GetVariable(vname) :?> bool [,]
+            v |> Seq.cast<bool> |> Seq.toArray :> obj
+        | MatlabType.MLogicalMatrix, { Size = [sx;sy] } -> proxy.GetVariable(vname)
+        | MatlabType.MUnexpected, _ -> proxy.GetVariable(vname)
         | _ -> failwith (sprintf "Could not read Unexpected/Unsupported Variable Type: %A" vtype)
 
     member t.ExecuteExpression (expr: IMatlabExpressionable) =
