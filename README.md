@@ -4,6 +4,7 @@ Matlab-Type-Provider
 A (not yet complete) Type Provider for Matlab in the spirit of the R Type Provider
 
 Recent Additions:
+- 08/23/2013 - Now works well with very large double, complex or logical matrices. 
 - 07/16/2013 - Now uses FSMatlab namespace.  Infix Operator support on variable handles.
 - 07/15/2013 - Removed Simple Provider.  It was only making changes more complicated. 
 - 06/21/2013 - Added correct parameterization for native/MEX.  No more varargs everywhere!
