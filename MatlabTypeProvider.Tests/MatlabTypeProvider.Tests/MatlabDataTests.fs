@@ -59,3 +59,15 @@ let ``a large matrix of complex values should set properly`` () =
         use res = FSMatlab.MatlabInterface.executor.Execute("all(all(" + handle.Name + "== 2+3i))")
         Assert.True(res.Get())
     )
+
+[<Fact>]
+let ``a large matrix in matlab should get properly`` () =
+    AssertNoVariableChanges (fun _ ->
+        use ones = FSMatlab.MatlabInterface.executor.Execute("ones(10000,5000)")
+        let v : double [,] = ones.Get()
+        Assert.Equal(v.GetLength(0), 10000)
+        Assert.Equal(v.GetLength(1), 5000)
+        do v |> Array2D.iter (fun v -> Assert.Equal(1.0, v))
+        Assert.Equal(10000.0 * 5000.0, v |> Seq.cast<double> |> Seq.sum)
+    )
+    

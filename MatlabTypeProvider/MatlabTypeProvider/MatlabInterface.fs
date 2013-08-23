@@ -211,6 +211,35 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
         let outargs = Array.init numout (fun _ -> t.GenerateSafeVariableName())
         t.CallFunctionWithHandles(name, outargs, args)
 
+
+    member private t.GetSmallMatrix { Name = vname; Size = [sx;sy] } = 
+        proxy.GetFullMatrix(vname,sx,sy) |> fst
+
+    // NOTE: Would be grealy simplified by remote slicing on matlab handles
+    member private t.GetMatrix(mvi: MatlabVariableInfo) =
+        let max_bytes = 8388608 // ~8mb at a time
+        if mvi.Bytes <= (uint64 max_bytes) then t.GetSmallMatrix(mvi) // do simple transfer
+        else // chunked transfer
+            let m_height = mvi.Size.[0]
+            let m_width = mvi.Size.[1]
+            let output_matrix = Array2D.zeroCreate m_height m_width
+            let elm_size = (float mvi.Bytes) / ((float m_height) * (float m_width)) 
+            let max_doubles = (float max_bytes) / elm_size |> int
+            let m_rows_per_iter = max_doubles / m_width
+            let iters = m_height / m_rows_per_iter // int division, rounds down
+            for i = 0 to iters - 1 do
+                let sidx = m_rows_per_iter * i
+                let eidx = m_rows_per_iter * (i + 1) - 1 
+                let cmd = String.Format("{0}({1}:{2},:)", mvi.Name, (sidx + 1), (eidx + 1))
+                use iter_handle = t.Execute(cmd)
+                let data : float[,] = iter_handle.Get()
+                do Array2D.blit data 0 0 output_matrix sidx 0 (data.GetLength(0)) (data.GetLength(1))
+            let sidx = iters * m_rows_per_iter
+            use iter_handle = t.Execute(String.Format("{0}({1}:end, :)", mvi.Name, sidx + 1))
+            let data : float[,] = iter_handle.Get()
+            do Array2D.blit data 0 0 output_matrix sidx 0 (data.GetLength(0)) (data.GetLength(1))
+            output_matrix        
+
     member t.GetVariableContents (vname: string) = 
         let vi = 
             match t.GetVariableInfo(vname) with
@@ -227,7 +256,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
             let carr = Array.CreateInstance(typeof<double>, sy) :?> double []
             for i = 0 to sy - 1 do Array.set carr i (real.[0,i])
             carr :> obj
-        | MatlabType.MMatrix, { Size = [sx;sy] } -> proxy.GetFullMatrix(vname,sx,sy) |> fst :> obj
+        | MatlabType.MMatrix, { Size = [sx;sy] } -> t.GetMatrix(mvi) |> box //proxy.GetFullMatrix(vname,sx,sy) |> fst :> obj
         | MatlabType.MComplexDouble, _ -> 
             let r, i = proxy.GetFullMatrix(vname,1,1,true) |> fun (r,i) -> r.[0,0], i.[0,0]
             Complex(r, i) :> obj
