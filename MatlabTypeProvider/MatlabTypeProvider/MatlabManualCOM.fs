@@ -13,7 +13,14 @@ module MatlabCOM =
 
         let comType = Type.GetTypeFromProgID(progid, true) 
 
-        let getComObject () = Activator.CreateInstance(comType)
+        [<ThreadStatic>] [<DefaultValue>]
+        static val mutable private instance:Option<Object>
+
+        static let lockObj = new Object()
+        let getComObject () = 
+            match MatlabCOMProxy.instance with
+            | None -> let v = Activator.CreateInstance(comType) in MatlabCOMProxy.instance <- Some (v); v
+            | Some(v) -> v
 
         //let __comObject = 
             //try Marshal.GetActiveObject(progid)
@@ -34,7 +41,7 @@ module MatlabCOM =
 
         /// The server returns output from the command in the string, result. The result string also contains any warning or error messages that might have been issued by MATLAB software as a result of the command.
         member t.Execute (args: obj[]) =               
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 match comType.InvokeMember("Execute", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, comObject, args) with
                 | :? string as strres -> removeAns strres :> obj
@@ -45,7 +52,7 @@ module MatlabCOM =
         /// To reference a variable defined in the server, specify the variable name followed by an equals (=) sign:
         /// a = h.Feval('sin', 1, 'x=');
         member t.Feval (name: string) (numoutparams: int) (args: obj []) : obj = 
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 //[| name; noutparams; result, arg1 ... argn |]
                 let prms : obj [] = Array.append [| name; numoutparams; null |] args
@@ -60,7 +67,7 @@ module MatlabCOM =
 
         /// Read a char array from matlab as a string
         member t.GetCharArray (var: string) = 
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 comType.InvokeMember("GetCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, comObject, [|var; "base"|] ) :?> string
             )
@@ -69,15 +76,14 @@ module MatlabCOM =
         /// If your scripting language requires a result be returned explicitly, use the GetVariable function in place of GetWorkspaceData, GetFullMatrix or GetCharArray.
         /// Do not use GetVariable on sparse arrays, structures, or function handles.
         member t.GetVariable (var: string) = 
-            
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 comType.InvokeMember("GetVariable", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, comObject, [|var; "base"|] ) 
             )
 
         /// Get both the real and imaginary parts of a matrix from matlab, not currently working
         member t.GetFullMatrix (var: string, xsize: int, ?ysize: int, ?hasImag: bool) = 
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 let ysize =  defaultArg ysize 0 
                 let hasImag = defaultArg hasImag false
@@ -97,7 +103,7 @@ module MatlabCOM =
         /// Use GetWorkspaceData instead of GetFullMatrix and GetCharArray to get numeric and character array data, respectively. Do not use GetWorkspaceData on sparse arrays, structures, or function handles.
         /// These functions use the variant data type instead of the safearray data type used by GetFullMatrix and PutFullMatrix.
         member t.GetWorkspaceData (var: string) =        
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 let mutable res : obj = null
                 do comType.InvokeMember("GetWorkspaceData", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, comObject, [|var; "base", res|] ) |> ignore
@@ -108,14 +114,14 @@ module MatlabCOM =
         // !!! NOTE: Put* Methods have not been tested
         //
         member t.PutCharArray (var:string) (value:string) : unit =  
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 comType.InvokeMember("PutCharArray", Reflection.BindingFlags.InvokeMethod ||| Reflection.BindingFlags.Public, null, comObject, [|var; "base"; value|] ) 
                 |> ignore
             )
     
         member t.PutFullMatrix (var: string, xreal: double [,], ?ximag: double [,]) : unit = 
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 let ximag : obj = 
                     match ximag with
@@ -128,7 +134,7 @@ module MatlabCOM =
 
         /// Use PutWorkspaceData to pass numeric and character array data respectively to the server. Do not use PutWorkspaceData on sparse arrays, structures, or function handles. Use the Execute method for these data types.
         member t.PutWorkspaceData (var: string) (data: obj) : unit =  
-            lock (comType) (fun _ ->
+            lock (lockObj) (fun _ ->
                 let comObject = getComObject ()
                 comType.InvokeMember("PutWorkspaceData", Reflection.BindingFlags.InvokeMethod, null, comObject, [|var; "base"; data|] ) 
                 |> ignore

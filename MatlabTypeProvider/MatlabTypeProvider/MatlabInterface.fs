@@ -215,7 +215,7 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
 //        proxy.GetFullMatrix(vname,sx,sy) |> fst
 
     member private t.GetLargeMatrix<'T> (mvi: MatlabVariableInfo) =
-        let max_bytes = 8388608 // ~8mb at a time
+        let max_bytes = 8388608 // ~8 mb at a time
         let m_height = mvi.Size.[0]
         let m_width = mvi.Size.[1]
         let output_matrix = Array2D.zeroCreate m_height m_width

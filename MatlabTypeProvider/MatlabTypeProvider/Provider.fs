@@ -12,8 +12,10 @@ open Samples.FSharp.ProvidedTypes
 open FSMatlab.InterfaceTypes
 open FSMatlab.Interface
 
-module MatlabInterface =    
-    let executor = MatlabCommandExecutor(new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application"))
+module MatlabInterface = 
+    let private comProxy = new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")
+    let executor = MatlabCommandExecutor(comProxy)
+    let toolboxeCache = lazy (executor.GetToolboxes() |> Seq.toList |> InterfaceHelpers.MatlabFunctionHelpers.nestAllToolboxes)
 
 module ProviderHelpers = 
         let internal getParamsForFunctionInputs (mlfun: MatlabFunctionInfo) =
@@ -128,7 +130,7 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
     //
     let fty = ProvidedTypeDefinition(thisAssembly, lazyRootNamespace, "Toolboxes", Some(typeof<obj>))
     do fty.AddMembersDelayed(fun () -> 
-           let toolboxes = executor.GetToolboxes() |> Seq.toList |> InterfaceHelpers.MatlabFunctionHelpers.nestAllToolboxes in 
+           let toolboxes = MatlabInterface.toolboxeCache.Value in 
                LazyProviderHelpers.generateToolboxes executor toolboxes)
     do fty.AddXmlDoc("Matlab toolboxes with function handles")
     do this.AddNamespace(lazyRootNamespace,  [fty])
