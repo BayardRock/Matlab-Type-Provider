@@ -9,7 +9,6 @@ open FSMatlab.InterfaceTypes
 
 open TestHelpers
 
-
 [<Fact>]
 let ``function calls with arrays should execute and return a single correct answer`` () =
     let res = Toolboxes.matlab.elfun.nthroot([|9.0; 49.0|], 2.0) |> EGT1<double []>

@@ -32,6 +32,7 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\MatlabTypeProvider.Tests.XML</DocumentationFile>
     <PlatformTarget>x64</PlatformTarget>
+    <NoWarn />
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
@@ -46,7 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="MatlabTypeProvider">
-      <HintPath>..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Debug\MatlabTypeProvider.dll</HintPath>
+      <HintPath>..\..\MatlabTypeProvider\MatlabTypeProvider\bin\Release\MatlabTypeProvider.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">

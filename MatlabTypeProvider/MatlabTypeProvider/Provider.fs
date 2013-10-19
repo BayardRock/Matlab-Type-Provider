@@ -12,6 +12,7 @@ open Samples.FSharp.ProvidedTypes
 open FSMatlab.InterfaceTypes
 open FSMatlab.Interface
 
+[<CompilerMessageAttribute("For Type Provider internal use only.", 10001)>] // Special number blessed by Tomas
 module MatlabInterface = 
     let private comProxy = new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")
     let executor = MatlabCommandExecutor(comProxy)
@@ -30,13 +31,18 @@ module SimpleProviderHelpers =
     // TODO: Make Lazy Variable Handles 
     let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
             [
-                for var in executor.GetVariableInfos() do
+                for info in executor.GetVariableInfos() do
+                    let handle = executor.GetVariableHandle(info)
                     let p = ProvidedProperty(
-                                propertyName = var.Name, 
-                                propertyType = var.Type, 
+                                propertyName = info.Name, 
+                                propertyType = typeof<MatlabVariableHandle>, 
                                 IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name) @@>)
-                    p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
+                                GetterCode = fun args -> 
+                                    let name = info.Name in 
+                                        <@@ 
+                                            MatlabInterface.executor.GetVariableHandle(name) 
+                                        @@>)
+                    p.AddXmlDocDelayed(fun () -> sprintf "%A" info)
                     yield p                   
             ]
 
@@ -64,12 +70,12 @@ module LazyProviderHelpers =
                                             else Quotations.Expr.NewArray(typeof<obj>, [])
 
                                         let namedInArgs = if hasVarargin then
-                                                               let nArgs = arrArgs.[0 .. arrArgs.Length - 2] //|> Array.map (fun expr -> Quotations.Expr.Coerce(expr, typeof<obj>))
+                                                               let nArgs = arrArgs.[0 .. arrArgs.Length - 2] 
                                                                Quotations.Expr.NewArray(typeof<obj>, nArgs |> Array.toList)
                                                           else Quotations.Expr.NewArray(typeof<obj>, args)
 
                                         <@@ 
-                                            let finfo =  MatlabInterface.executor.GetFunctionInfoFromName name
+                                            let finfo = MatlabInterface.executor.GetFunctionInfoFromName name
                                             let fhandle = MatlabInterface.executor.GetFunctionHandle(finfo)
                                             let vettedInArgs = 
                                                 let namedInArgs = (%%namedInArgs : obj[])
@@ -98,7 +104,7 @@ module LazyProviderHelpers =
                         #endif
 
                         // Generate Toolbox Functions
-                        yield! tb.Funcs |> Seq.map (fun func -> generateFunctionHandlesFromDescription executor tb func :> MemberInfo)
+                        yield! tb.Funcs |> Seq.map (fun func -> generateFunctionHandlesFromDescription executor tb (func.Force()) :> MemberInfo)
                         // Generate Sub-toolboxes
                         yield! generateToolboxes executor (tb.Toolboxes)  
                     ])

@@ -10,6 +10,8 @@ open FSMatlab.InterfaceTypes
 
 open TestHelpers
 
+#nowarn "10001" // Speical warning for Type Provider internals 
+
 [<Fact>] 
 let ``supported instance types should round trip`` () =
     let vs : (obj) list =

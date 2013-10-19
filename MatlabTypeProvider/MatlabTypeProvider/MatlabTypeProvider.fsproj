@@ -20,7 +20,13 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\MatlabCOMTypeProvider.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\MatlabTypeProvider.XML</DocumentationFile>
+    <StartAction>Program</StartAction>
+    <StartProgram>C:\Program Files (x86)\Microsoft Visual Studio 11.0\Common7\IDE\devenv.exe</StartProgram>
+    <StartWorkingDirectory>
+    </StartWorkingDirectory>
+    <StartArguments>"C:\Users\rminerich\Documents\GitHub\Matlab-Type-Provider\MatlabTypeProvider.Debug\MatlabTypeProvider.Debug\MatlabTypeProvider.Debug\MatlabTypeProvider.Debug.fsproj"</StartArguments>
+    <NoWarn>10001</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -29,13 +35,15 @@
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\MatlabCOMTypeProvider.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\MatlabTypeProvider.XML</DocumentationFile>
+    <NoWarn>10001</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')" />
   <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ProvidedTypes.fs" />
     <Compile Include="MatlabDLL.fs" />
     <Compile Include="MatlabManualCOM.fs" />
