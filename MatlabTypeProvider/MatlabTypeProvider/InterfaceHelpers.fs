@@ -36,7 +36,7 @@ module TypeConverters =
         let mltype = getMatlabTypeFromMatlabSig mvi
         let dntype = 
             try getDotNetType mltype
-            with ex -> failwith (ex.Message + ": " + mvi.Class + " of " + mvi.Size.ToString())
+            with ex -> failwithf "%s: %s of %A" ex.Message mvi.Class mvi.Size
         {
             MatlabVariableInfo = mvi
             MatlabType = mltype
@@ -98,7 +98,7 @@ module MatlabFunctionHelpers =
                 let functionInfos = 
                     if inpaths.Contains searchPath then
                         searchPathForFunctionFiles searchPath 
-                        |> Seq.map (fun path -> pathTofunctionInfo path)
+                        |> Seq.map pathTofunctionInfo
                     else Seq.empty
 
                 yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = functionInfos; Toolboxes = []}
@@ -202,41 +202,56 @@ module MatlabCallHelpers =
             newArr :> obj            
         | x -> x
 
-    let parsePackages (pkgs: string) =
-        pkgs.Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList |> List.map (fun pkg -> pkg.Trim())
+    let parsePackages = 
+        let splitChars = [|';'|]
+        fun (pkgs: string) ->
+            pkgs.Split(splitChars, StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun pkg -> pkg.Trim()) |> List.ofArray
 
-    let filterPackages (pkgs: string list) =
+    let filterPackages =
         let badPkgs = [| "MS"; "Microsoft"; "System" |]
-        pkgs |> List.filter (fun p -> (badPkgs |> Array.forall (fun bp -> not <| p.StartsWith(bp))))
-
-    let tsvToMethodInfo (tsv: string) = 
-        try
-            [
-                for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
-                    let fields = line.Split([|'\t'|], StringSplitOptions.None)
-                    yield {
-                        Name = fields.[0]
-                        InArgs = fields.[1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
-                        OutArgs = fields.[2].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
-                        Access = fields.[3]
-                        Static = fields.[4] = "1"
-                    }
-            ]
-        with _ -> [ { Name = "Error"; InArgs = []; OutArgs = []; Access = "public"; Static = true }]
+        fun (pkgs: string list) ->
+            pkgs |> List.filter (fun p -> (badPkgs |> Array.forall (fun bp -> not <| p.StartsWith(bp))))
+    
+    let tsvToMethodInfo =
+        let tab = [|'\t'|]
+        let semiColon = [|';'|]
+        fun (tsv: string) ->
+            try
+                [
+                    for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
+                        let fields = line.Split(tab, StringSplitOptions.None)
+                        yield {
+                            Name = fields.[0]
+                            InArgs = fields.[1].Split(semiColon, StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                            OutArgs = fields.[2].Split(semiColon, StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                            Access = fields.[3]
+                            Static = fields.[4] = "1"
+                        }
+                ]
+            with _ -> [ { Name = "Error"; InArgs = []; OutArgs = []; Access = "public"; Static = true }]
 
     let removeHtmlTags (html: string) =
         System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
 
-    let addXMCDocMarkup (helpText: string) =   
-        let splitChars = Environment.NewLine.ToCharArray()     
-        let innerText = 
-            helpText.Split(splitChars, StringSplitOptions.None) 
-            |> Seq.map (fun str -> """<para>""" + str + """</para>""")
-            |> Seq.reduce (+)
-        """<summary>""" + innerText + """</summary>"""
+    let addXMCDocMarkup (helpText: string) =
+        let writeTagContent (sb : StringBuilder) (tag : string) (content : string) : StringBuilder =
+            // Preconditions
+            if String.IsNullOrWhiteSpace tag then
+                invalidArg "tag" "The tag name cannot be null, empty, or consist of only whitespace characters."
+            // TODO : Make sure string consists of only alphanum characters.
+            sb.Append("<").Append(tag).Append(">")  // Opening tag
+              .Append(content)                      // Content
+              .Append("</").Append(tag).Append(">") // Closing tag
+
+        let sb = System.Text.StringBuilder ()
+        let splitText = helpText.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.None)
+        sb.Append("""<summary>""") |> ignore                                              // Open the 'summary' tag.
+        Array.fold (fun sb str -> writeTagContent sb "para" str) sb splitText |> ignore   // Write paragraphs.
+        sb.Append("""</summary>""")                                                       // Close the summary tag..
+          .ToString()
 
     let parseHelp (pkgName: string) (helpText: string) =
-        if helpText.Trim() = "" then None
+        if String.IsNullOrEmpty helpText then None
         else helpText |> removeHtmlTags |> addXMCDocMarkup |> Some
 
     let commaDelm (strs: string []) = System.String.Join(",", strs)
