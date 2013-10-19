@@ -134,13 +134,9 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
     // Lazy Toolboxes and Functions 
     //
     let toolboxNamespace = "Toolboxes"
-//    let fty = ProvidedTypeDefinition(thisAssembly, lazyRootNamespace, "Toolboxes", Some(typeof<obj>))
     let toolboxInfos = MatlabInterface.toolboxeCache.Value
     let toolboxObjects = LazyProviderHelpers.generateToolboxes executor thisAssembly toolboxNamespace toolboxInfos
     do toolboxObjects |> List.iter (fun (ns, tb) -> this.AddNamespace(ns, [tb])) 
-    //do fty.AddXmlDoc("Matlab toolboxes with function handles")
-    //do this.AddNamespace(lazyRootNamespace,  [fty])
-
 
 [<assembly:TypeProviderAssembly>] 
 do()
