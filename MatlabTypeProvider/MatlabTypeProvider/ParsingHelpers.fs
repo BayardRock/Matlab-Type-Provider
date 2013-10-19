@@ -137,3 +137,37 @@ let tagSeriesFromTokenStream (start: string array) (stop: string array) (tokens:
         }
     inner 0 0 []
 
+// Adapted from: https://github.com/opserver/Opserver/blob/master/Opserver.Core/StringSplits.cs
+[<RequireQualifiedAccess>]
+module StringSplits =
+    let Space = [|' '|]
+    let Comma = [|','|]
+    let Period = [|'.'|]
+    let Minus = [|'-'|]
+    let Plus = [|'+'|]
+    let Asterisk = [|'*'|]
+    let Percent = [|'%'|]
+    let Ampersand = [|'&'|]
+    let Equal = [|'='|]
+    let Underscore = [|'_'|]
+    let NewLine = [|'\n'|]
+    let Tab = [|'\t'|]
+    let Semicolon = [|';'|]
+    let Colon = [|':'|]
+    let VerticalBar = [|'|'|]
+    let ForwardSlash = [|'/'|]
+    let BackSlash = [|'\\'|]
+    let DoubleQuote = [| '"' |]
+    let Period_Plus = [| '.'; '+' |]
+    let NewLine_CarriageReturn = [|'\n'; '\r'|]
+    let Comma_Semicolon = [|','; ';'|]
+    let Comma_Semicolon_Space = [|','; ';'; ' '|]
+    let BackSlash_Slash_Period = [|'\\'; '/'; '.'|]
+
+    /// Environment-specific newline characters.
+    let EnvironmentNewlines =
+        System.Environment.NewLine.ToCharArray ()
+
+    /// The directory separator character for the current system.
+    let DirSeperator =
+        [| System.IO.Path.DirectorySeparatorChar |]
