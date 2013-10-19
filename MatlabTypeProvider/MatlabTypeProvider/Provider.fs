@@ -27,9 +27,9 @@ module ProviderHelpers =
                     else                    yield ProvidedParameter(p, typeof<obj []>, IsParamArray = true)
             ], hasVarargin
 
-module SimpleProviderHelpers =
-    // TODO: Make Lazy Variable Handles 
-    let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
+module LazyProviderHelpers =
+
+    let generateTypesForMatlabVariableHandles (executor: MatlabCommandExecutor) = 
             [
                 for info in executor.GetVariableInfos() do
                     let handle = executor.GetVariableHandle(info)
@@ -45,8 +45,6 @@ module SimpleProviderHelpers =
                     p.AddXmlDocDelayed(fun () -> sprintf "%A" info)
                     yield p                   
             ]
-
-module LazyProviderHelpers =
 
     let generateFunctionHandlesFromDescription (executor: MatlabCommandExecutor) (tb: MatlabToolboxInfo) (mlfun: MatlabFunctionInfo) =
         let funcParams, hasVarargin = ProviderHelpers.getParamsForFunctionInputs mlfun
@@ -124,10 +122,10 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
     let executor = new MatlabCommandExecutor(proxy)
     
     //
-    // Strict Base Variables
+    // Handles to Existing Variables
     //
-    let pty = ProvidedTypeDefinition(thisAssembly,strictRootNamespace,"Vars", Some(typeof<obj>))
-    do pty.AddMembersDelayed(fun () -> SimpleProviderHelpers.generateTypesForMatlabVariables executor)
+    let pty = ProvidedTypeDefinition(thisAssembly,strictRootNamespace, "Vars", Some(typeof<obj>))
+    do pty.AddMembersDelayed(fun () -> LazyProviderHelpers.generateTypesForMatlabVariableHandles executor)
     do pty.AddXmlDoc("This contains all variables which are bound when the type provider is loaded")
     do this.AddNamespace(strictRootNamespace,  [pty])
 
