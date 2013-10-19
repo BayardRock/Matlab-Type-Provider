@@ -50,9 +50,9 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetPackageMethods (pkgName: string) = 
         proxy.Execute [|MatlabStrings.getPackageFunctions pkgName|] :?> string |> tsvToMethodInfo
 
-    member t.GetFunctionInfoFromFile (path: string) = MatlabFunctionHelpers.fileToFunctionInfo path   
+    member t.GetFunctionInfoFromFile (path: string) : MatlabFunctionInfo option = MatlabFunctionHelpers.fileToFunctionInfo path
 
-    member t.GetFunctionInfoFromName (funcname: string) = 
+    member t.GetFunctionInfoFromName (funcname: string) : MatlabFunctionInfo = 
         try 
             let numArgsIn, varArgsIn = t.GetFunctionNumInputArgs(funcname)
             let numArgsOut, varArgsOut = t.GetFunctionNumOutputArgs(funcname)
@@ -68,14 +68,14 @@ type MatlabCommandExecutor(proxy: MatlabCOMProxy) =
     member t.GetToolboxes () = 
         let matlabRoot = proxy.Execute [|"matlabroot"|] :?> string |> (fun str -> str.Trim())
         let searchPaths = proxy.Execute [|"disp(path)"|] :?> string |> (fun paths -> paths.Split([|';'|], StringSplitOptions.RemoveEmptyEntries)) |> Array.map (fun str -> str.Trim())
-        let functionBuilder path = 
-            match t.GetFunctionInfoFromFile(path) with
-            | Some fi -> fi 
-            | None -> t.GetFunctionInfoFromName(System.IO.Path.GetFileNameWithoutExtension(path))
+        let functionBuilder path =             
+            lazy match t.GetFunctionInfoFromFile(path) with
+                 | Some fi -> fi 
+                 | None -> t.GetFunctionInfoFromName(System.IO.Path.GetFileNameWithoutExtension(path))
 
         MatlabFunctionHelpers.toolboxesFromPaths matlabRoot functionBuilder searchPaths
 
-    member t.GetFunctionHandle (funcInfo: MatlabFunctionInfo) =
+    member t.GetFunctionHandle (funcInfo: MatlabFunctionInfo) : MatlabFunctionHandle =
         let fexecNamed (inargs: obj []) (outargs: string []) = t.CallFunctionWithHandles(funcInfo.Name, outargs, inargs)
         let fexecNum (inargs: obj []) (out: int) = t.CallFunctionWithHandles(funcInfo.Name, out, inargs)
         RepresentationBuilders.getFunctionHandleFromFunctionInfo funcInfo fexecNamed fexecNum

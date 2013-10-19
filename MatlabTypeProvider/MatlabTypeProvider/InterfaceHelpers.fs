@@ -73,7 +73,7 @@ module MatlabFunctionHelpers =
             else yield path
         ]
 
-    let toolboxesFromPaths (matlabPath: string) (pathTofunctionInfo: string -> MatlabFunctionInfo) (inPaths: string seq) =
+    let toolboxesFromPaths (matlabPath: string) (pathTofunctionInfo: string -> MatlabFunctionInfo Lazy) (inPaths: string seq) =
         let toolboxPath = Path.Combine(matlabPath, "toolbox")
 
         let inpaths = inPaths |> Set.ofSeq
@@ -134,7 +134,6 @@ module MatlabCallHelpers =
             let randomAddendum = System.IO.Path.GetRandomFileName().Replace('.', '_')
             yield System.String.Format("mtp_{0}_{1}", procid, randomAddendum)
         }
-        //varNames |> Seq.find (fun v -> not <| Array.exists (fun cv -> cv = v) currentVariables)
 
     let nullToOption =
         function

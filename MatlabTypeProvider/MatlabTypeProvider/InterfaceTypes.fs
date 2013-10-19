@@ -53,7 +53,7 @@ type MatlabToolboxInfo = {
         Name: string
         Path: string
         HelpName: string option
-        Funcs: MatlabFunctionInfo seq
+        Funcs: MatlabFunctionInfo Lazy seq
         Toolboxes: MatlabToolboxInfo list
     }
 

@@ -99,7 +99,7 @@ module LazyProviderHelpers =
                         #endif
 
                         // Generate Toolbox Functions
-                        yield! tb.Funcs |> Seq.map (fun func -> generateFunctionHandlesFromDescription executor tb func :> MemberInfo)
+                        yield! tb.Funcs |> Seq.map (fun func -> generateFunctionHandlesFromDescription executor tb (func.Force()) :> MemberInfo)
                         // Generate Sub-toolboxes
                         yield! generateToolboxes executor (tb.Toolboxes)  
                     ])
