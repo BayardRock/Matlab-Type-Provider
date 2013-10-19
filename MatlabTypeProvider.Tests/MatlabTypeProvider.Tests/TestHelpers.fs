@@ -2,6 +2,8 @@
 
 open Xunit
 
+#nowarn "10001" // Speical warning for Type Provider internals 
+
 let AssertNoVariableChanges (testfun: unit -> unit) =   
     let startVars = FSMatlab.MatlabInterface.executor.GetVariableInfos()
     testfun()

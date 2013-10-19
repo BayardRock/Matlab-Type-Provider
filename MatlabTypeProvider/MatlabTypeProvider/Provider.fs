@@ -12,6 +12,7 @@ open Samples.FSharp.ProvidedTypes
 open FSMatlab.InterfaceTypes
 open FSMatlab.Interface
 
+[<CompilerMessageAttribute("For Type Provider internal use only.", 10001)>] // Special number blessed by Tomas
 module MatlabInterface = 
     let private comProxy = new FSMatlab.MatlabCOM.MatlabCOMProxy("Matlab.Desktop.Application")
     let executor = MatlabCommandExecutor(comProxy)
@@ -64,12 +65,12 @@ module LazyProviderHelpers =
                                             else Quotations.Expr.NewArray(typeof<obj>, [])
 
                                         let namedInArgs = if hasVarargin then
-                                                               let nArgs = arrArgs.[0 .. arrArgs.Length - 2] //|> Array.map (fun expr -> Quotations.Expr.Coerce(expr, typeof<obj>))
+                                                               let nArgs = arrArgs.[0 .. arrArgs.Length - 2] 
                                                                Quotations.Expr.NewArray(typeof<obj>, nArgs |> Array.toList)
                                                           else Quotations.Expr.NewArray(typeof<obj>, args)
 
                                         <@@ 
-                                            let finfo =  MatlabInterface.executor.GetFunctionInfoFromName name
+                                            let finfo = MatlabInterface.executor.GetFunctionInfoFromName name
                                             let fhandle = MatlabInterface.executor.GetFunctionHandle(finfo)
                                             let vettedInArgs = 
                                                 let namedInArgs = (%%namedInArgs : obj[])
