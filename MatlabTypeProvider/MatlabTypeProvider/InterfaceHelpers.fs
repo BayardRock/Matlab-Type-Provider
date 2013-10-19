@@ -36,7 +36,8 @@ module TypeConverters =
         let mltype = getMatlabTypeFromMatlabSig mvi
         let dntype = 
             try getDotNetType mltype
-            with ex -> failwith (ex.Message + ": " + mvi.Class + " of " + mvi.Size.ToString())
+            with ex ->
+                failwithf "%s: %s of %A" ex.Message mvi.Class mvi.Size
         {
             MatlabVariableInfo = mvi
             MatlabType = mltype
@@ -67,7 +68,7 @@ module MatlabFunctionHelpers =
         [
             if path.StartsWith root && not (path = root) then
                 let rmpath = path.Remove(0, root.Length + 1) in 
-                    yield! rmpath.Split([|Path.DirectorySeparatorChar|], StringSplitOptions.RemoveEmptyEntries)
+                    yield! rmpath.Split(StringSplits.DirSeperator, StringSplitOptions.RemoveEmptyEntries)
                            |> Seq.scan (fun st e -> st + Path.DirectorySeparatorChar.ToString() + e) root
                            |> Seq.skip 1
             else yield path
@@ -76,8 +77,8 @@ module MatlabFunctionHelpers =
     let toolboxesFromPaths (matlabPath: string) (pathTofunctionInfo: string -> MatlabFunctionInfo Lazy) (inPaths: string seq) =
         let toolboxPath = Path.Combine(matlabPath, "toolbox")
 
-        let inpaths = inPaths |> Set.ofSeq
-        let searchPaths = 
+        let inpaths = set inPaths
+        let searchPaths =
             inPaths |> Seq.toList |> List.sort |> List.collect (decomposePath toolboxPath) 
             |> Seq.filter (fun str -> not <| String.IsNullOrWhiteSpace(str))
             |> Set.ofSeq |> Set.toSeq
@@ -93,12 +94,13 @@ module MatlabFunctionHelpers =
                         name, Some helpname
                     else // User Defined "Toolbox"
                         // TODO: Find a better way to name user toolboxes
-                        do userIdx := !userIdx + 1
+                        incr userIdx
                         "User" + (string !userIdx), None
-                let functionInfos = 
-                    if inpaths.Contains searchPath then
-                        searchPathForFunctionFiles searchPath 
-                        |> Seq.map (fun path -> pathTofunctionInfo path)
+                let functionInfos =
+                    if Set.contains searchPath inpaths then
+                        searchPath
+                        |> searchPathForFunctionFiles
+                        |> Seq.map pathTofunctionInfo
                     else Seq.empty
 
                 yield { Name = name; Path = searchPath; HelpName = helpname; Funcs = functionInfos; Toolboxes = []}
@@ -125,6 +127,7 @@ module MatlabCallHelpers =
     open System
     open System.Text
     open Microsoft.Win32
+    open ParsingHelpers
     
     let processId = lazy (System.Diagnostics.Process.GetCurrentProcess().Id.ToString())
 
@@ -145,26 +148,42 @@ module MatlabCallHelpers =
         | Some x -> Some x
         | None -> y 
 
-    let getProgIDsAndPaths () = 
-        use regClsid = Registry.ClassesRoot.OpenSubKey("CLSID") in
-            regClsid.GetSubKeyNames()
-            |> Array.map (fun clsid -> 
-                use key = regClsid.OpenSubKey(clsid) in 
-                    key.OpenSubKey("ProgID"), key.OpenSubKey("InprocServer32"), key.OpenSubKey("LocalServer32"))
-            |> Array.map (fun (progid, ipspath, lspath) -> progid, if ipspath = null then lspath else ipspath)
-            |> Array.filter (fun (progid, path) -> progid <> null && path <> null) 
-            |> Array.map (fun (progid, path) -> let res = progid.GetValue(""), path.GetValue("") in progid.Close(); path.Close(); res)
-            |> Array.filter (fun (pid, pth) -> pid <> null && pth <> null)
-            |> Array.map (fun (pid, pth) -> (string pid) + " -> " + (string pth))
+    let getProgIDsAndPaths () =
+        use regClsid = Registry.ClassesRoot.OpenSubKey("CLSID")
+        regClsid.GetSubKeyNames()
+        |> Array.map (fun clsid ->
+            use key = regClsid.OpenSubKey(clsid)
+            key.OpenSubKey("ProgID"),
+            key.OpenSubKey("InprocServer32"),
+            key.OpenSubKey("LocalServer32"))
+        |> Array.choose (fun (progid, ipspath, lspath) ->
+            let path = if ipspath = null then lspath else ipspath
+            if progid = null || path = null then None
+            else
+                Some (progid, path))
+        |> Array.map (fun (progid, path) ->
+            let res = progid.GetValue(""), path.GetValue("")
+            progid.Close()
+            path.Close()
+            res)
+        |> Array.choose (fun (pid, pth) ->
+            if pid = null || pth = null then None
+            else
+                Some <| (string pid) + " -> " + (string pth))
 
     let getProgIDs () = 
-        use regClsid = Registry.ClassesRoot.OpenSubKey("CLSID") in
-            regClsid.GetSubKeyNames()
-            |> Array.map (fun clsid -> use key = regClsid.OpenSubKey(clsid) in key.OpenSubKey("ProgID"))            
-            |> Array.filter ((<>) null)
-            |> Array.map (fun (progid) -> let spid = progid.GetValue("") in progid.Close(); spid)
-            |> Array.filter ((<>) null)
-            |> Array.map (string)
+        use regClsid = Registry.ClassesRoot.OpenSubKey("CLSID")
+        regClsid.GetSubKeyNames()
+        |> Array.map (fun clsid ->
+            use key = regClsid.OpenSubKey(clsid)
+            key.OpenSubKey("ProgID"))            
+        |> Array.filter ((<>) null)
+        |> Array.map (fun (progid) ->
+            let spid = progid.GetValue("")
+            progid.Close()
+            spid)
+        |> Array.filter ((<>) null)
+        |> Array.map (string)
 
     let getMatlabProgIDs () = 
         getProgIDs () 
@@ -199,25 +218,32 @@ module MatlabCallHelpers =
             let elemType = arr.GetType().GetElementType()
             let newArr = Array.CreateInstance(elemType, arr.GetLength(1))
             do System.Buffer.BlockCopy(arr, 0, newArr, 0, copyBytes)
-            newArr :> obj            
+            newArr :> obj
         | x -> x
 
     let parsePackages (pkgs: string) =
-        pkgs.Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList |> List.map (fun pkg -> pkg.Trim())
+        pkgs.Split (StringSplits.Semicolon, StringSplitOptions.RemoveEmptyEntries)
+        |> Array.map (fun pkgName -> pkgName.Trim ())
+        |> Array.toList
+
+    let private badPkgs = [| "MS"; "Microsoft"; "System" |]
 
     let filterPackages (pkgs: string list) =
-        let badPkgs = [| "MS"; "Microsoft"; "System" |]
-        pkgs |> List.filter (fun p -> (badPkgs |> Array.forall (fun bp -> not <| p.StartsWith(bp))))
+        pkgs
+        |> List.filter (fun pkgName ->
+            badPkgs
+            |> Array.forall (fun badPkgName ->
+                not <| pkgName.StartsWith badPkgName))
 
     let tsvToMethodInfo (tsv: string) = 
         try
             [
-                for line in tsv.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) do
-                    let fields = line.Split([|'\t'|], StringSplitOptions.None)
+                for line in tsv.Split(StringSplits.EnvironmentNewlines, StringSplitOptions.RemoveEmptyEntries) do
+                    let fields = line.Split(StringSplits.Tab, StringSplitOptions.None)
                     yield {
                         Name = fields.[0]
-                        InArgs = fields.[1].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
-                        OutArgs = fields.[2].Split([|';'|], StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                        InArgs = fields.[1].Split(StringSplits.Semicolon, StringSplitOptions.RemoveEmptyEntries) |> Array.toList
+                        OutArgs = fields.[2].Split(StringSplits.Semicolon, StringSplitOptions.RemoveEmptyEntries) |> Array.toList
                         Access = fields.[3]
                         Static = fields.[4] = "1"
                     }
@@ -227,19 +253,48 @@ module MatlabCallHelpers =
     let removeHtmlTags (html: string) =
         System.Text.RegularExpressions.Regex.Replace(html, @"<(.|\n)*?>", String.Empty)
 
-    let addXMCDocMarkup (helpText: string) =   
-        let splitChars = Environment.NewLine.ToCharArray()     
-        let innerText = 
-            helpText.Split(splitChars, StringSplitOptions.None) 
-            |> Seq.map (fun str -> """<para>""" + str + """</para>""")
-            |> Seq.reduce (+)
-        """<summary>""" + innerText + """</summary>"""
+    let private writeTagContent (sb : StringBuilder) (tag : string) (content : string) : unit =
+        // Preconditions
+        if String.IsNullOrWhiteSpace tag then
+            invalidArg "tag" "The tag name cannot be null, empty, or consist of only whitespace characters."
+        // TODO : Make sure string consists of only alphanum characters.
+
+        // Opening tag
+        sb.Append "<" |> ignore
+        sb.Append tag |> ignore
+        sb.Append ">" |> ignore
+
+        // Content
+        sb.Append content |> ignore
+
+        // Closing tag
+        sb.Append "</" |> ignore
+        sb.Append tag |> ignore
+        sb.Append ">" |> ignore
+
+    let addXMCDocMarkup (helpText: string) =
+        let sb = System.Text.StringBuilder ()
+
+        // Open the 'summary' tag.
+        sb.Append """<summary>""" |> ignore
+
+        // Write paragraphs.
+        helpText.Split (StringSplits.EnvironmentNewlines, StringSplitOptions.None)
+        |> Array.iter (fun str ->
+            writeTagContent sb "para" str)
+
+        // Close the summary tag.
+        sb.Append  """</summary>""" |> ignore
+
+        // Return the text from the StringBuilder.
+        sb.ToString ()
 
     let parseHelp (pkgName: string) (helpText: string) =
-        if helpText.Trim() = "" then None
+        if String.IsNullOrWhiteSpace helpText then None
         else helpText |> removeHtmlTags |> addXMCDocMarkup |> Some
 
-    let commaDelm (strs: string []) = System.String.Join(",", strs)
+    let inline commaDelm (strs: string []) =
+        System.String.Join (",", strs)
 
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =
@@ -252,6 +307,7 @@ module MatlabStrings =
                                  x.Access}, '\t'), ...
                              meta.package.fromName('""" + pkgName + """').FunctionList, 'UniformOutput', false) ...                 
                 ), '\r')"""
+
     let getHelpString (topic: string) =
         """disp(help('""" + topic + """'))"""
 
