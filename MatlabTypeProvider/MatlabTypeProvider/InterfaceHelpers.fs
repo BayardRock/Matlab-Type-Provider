@@ -239,12 +239,7 @@ module MatlabCallHelpers =
         if helpText.Trim() = "" then None
         else helpText |> removeHtmlTags |> addXMCDocMarkup |> Some
 
-    let commaDelm (strs: string []) = 
-        let sb = new StringBuilder()
-        for i = 0 to strs.Length - 1 do
-            sb.Append(strs.[i]) |> ignore
-            if i <> strs.Length - 1 then sb.Append(",") |> ignore
-        sb.ToString()        
+    let commaDelm (strs: string []) = System.String.Join(",", strs)
 
 module MatlabStrings =
     let getPackageFunctions (pkgName: string) =
