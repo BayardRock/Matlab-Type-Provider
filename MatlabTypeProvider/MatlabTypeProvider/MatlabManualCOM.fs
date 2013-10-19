@@ -13,6 +13,8 @@ module MatlabCOM =
 
         let comType = Type.GetTypeFromProgID(progid, true) 
 
+        //Todo: Marshal ReleaseCOMObject in Dispose
+
         [<ThreadStatic>] [<DefaultValue>]
         static val mutable private instance:Option<Object>
 
@@ -39,6 +41,30 @@ module MatlabCOM =
         member t.MatlabInstance = getComObject ()
         #endif
 
+        //
+        // IDisposable for Com Object
+        //
+
+        let mutable _disposed = false
+        let dispose (disposing: bool) =
+            if not _disposed && disposing then 
+                () // IDisposable only 
+            
+            if not _disposed then 
+                // Unmanaged Stuff
+                MatlabCOMProxy.instance |> function | Some(v) -> Marshal.ReleaseComObject(v) |> ignore | None -> () 
+                _disposed <- true
+                             
+
+        interface IDisposable with
+            member t.Dispose () = dispose(true); GC.SuppressFinalize(t)
+
+        override t.Finalize () = dispose(false)
+
+        //
+        // Members
+        //
+            
         /// The server returns output from the command in the string, result. The result string also contains any warning or error messages that might have been issued by MATLAB software as a result of the command.
         member t.Execute (args: obj[]) =               
             lock (lockObj) (fun _ ->
