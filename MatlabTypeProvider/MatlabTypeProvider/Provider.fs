@@ -31,13 +31,18 @@ module SimpleProviderHelpers =
     // TODO: Make Lazy Variable Handles 
     let generateTypesForMatlabVariables (executor: MatlabCommandExecutor) = 
             [
-                for var in executor.GetVariableInfos() do
+                for info in executor.GetVariableInfos() do
+                    let handle = executor.GetVariableHandle(info)
                     let p = ProvidedProperty(
-                                propertyName = var.Name, 
-                                propertyType = var.Type, 
+                                propertyName = info.Name, 
+                                propertyType = typeof<MatlabVariableHandle>, 
                                 IsStatic = true,
-                                GetterCode = fun args -> let name = var.Name in <@@ MatlabInterface.executor.GetVariableContents(name) @@>)
-                    p.AddXmlDocDelayed(fun () -> sprintf "%A" var)
+                                GetterCode = fun args -> 
+                                    let name = info.Name in 
+                                        <@@ 
+                                            MatlabInterface.executor.GetVariableHandle(name) 
+                                        @@>)
+                    p.AddXmlDocDelayed(fun () -> sprintf "%A" info)
                     yield p                   
             ]
 
