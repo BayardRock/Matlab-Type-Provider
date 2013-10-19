@@ -1,34 +1,34 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <title>F# Matlab Type Provider by BayardRock</title>
 
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-
-    <title>F# Matlab Type Provider by BayardRock</title>
   </head>
-
   <body>
-    <header>
-      <div class="inner">
+    <div class="wrapper">
+      <header>
         <h1>F# Matlab Type Provider</h1>
-        <h2>A (not yet complete) Type Provider for Matlab in the spirit of the R Type Provider</h2>
-        <a href="https://github.com/BayardRock/Matlab-Type-Provider" class="button"><small>View project on</small>GitHub</a>
-      </div>
-    </header>
+        <p>A (not yet complete) Type Provider for Matlab in the spirit of the R Type Provider</p>
 
-    <div id="content-wrapper">
-      <div class="inner clearfix">
-        <section id="main-content">
-          <h3>
+        <p class="view"><a href="https://github.com/BayardRock/Matlab-Type-Provider">View the Project on GitHub <small>BayardRock/Matlab-Type-Provider</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/BayardRock/Matlab-Type-Provider/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/BayardRock/Matlab-Type-Provider/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/BayardRock/Matlab-Type-Provider">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h3>
 <a name="what-to-expect" class="anchor" href="#what-to-expect"><span class="octicon octicon-link"></span></a>What to expect</h3>
 
 <p>The goal of this project is to provide a smooth and efficient framework for F#-Matlab interactions.  The goals for 1.0 include support for most Matlab functions and types in as well typed a manner as possible.</p>
@@ -56,16 +56,16 @@
 
 <p>This will allow you to keep a Matlab session open while you connect and disconnect with Visual Studio. If you don't do this then the Matlab Provider will launch a session when it starts which will close when the Type Provider is unloaded. </p>
 
-<p>Then you must load the type provider.  This is done either by an assembly reference, if you're using it in your project, or by specifying it like so in your F# .fsx script:</p>
+<p>Then you must load the type provider.  This is done either by an assembly reference, if you're using it in your project, or by specifying it like so (and the required namespaces) in your F# .fsx script:</p>
 
-<p><code>#R "MatlabTypeProvider.dll"</code></p>
+<div class="highlight highlight-fsharp"><pre><span class="o">#</span><span class="nc">R</span> <span class="s2">"MatlabTypeProvider.dll"</span>
+<span class="k">open</span> <span class="nc">FSMatlab</span>
+<span class="k">open</span> <span class="nn">FSMatlab</span><span class="p">.</span><span class="nc">InterfaceTypes</span>
+</pre></div>
 
 <p>With the Matlab Type Provider you work primarily with handles to functions and variables. Standard .NET values are supported interchangeably as well in order to make marshaling data across a simple matter.  Working this way prevents a lot of extra pushing data back-and-forth from Matlab when doing complex combinations of functions.  You must also specify exactly how many output parameters you would like.  This is because Matlab functions may opt not to calculate unused results.</p>
 
-<div class="highlight highlight-fsharp"><pre><span class="k">open</span> <span class="nc">FSMatlab</span>
-<span class="k">open</span> <span class="nn">FSMatlab</span><span class="p">.</span><span class="nc">InterfaceTypes</span>
-
-<span class="k">open</span> <span class="nn">Toolboxes</span><span class="p">.</span><span class="n">matlab</span><span class="o">.</span><span class="n">elmat</span> <span class="c1">// Open Matlab ToolBox as Namespace</span>
+<div class="highlight highlight-fsharp"><pre><span class="k">open</span> <span class="nn">Toolboxes</span><span class="p">.</span><span class="n">matlab</span><span class="o">.</span><span class="n">elmat</span> <span class="c1">// Open Matlab ToolBox as Namespace</span>
 <span class="k">let</span> <span class="n">m</span><span class="o">,</span><span class="n">n</span> <span class="o">=</span> <span class="nn">M</span><span class="p">.</span><span class="n">size</span><span class="o">([|</span><span class="mi">1</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span><span class="mi">3</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span><span class="mi">4</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span><span class="mi">5</span><span class="o">.</span><span class="mi">0</span><span class="o">|])</span> <span class="o">|&gt;</span> <span class="nc">EGT2</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">,</span><span class="kt">double</span><span class="o">&gt;</span>
 </pre></div>
 
@@ -95,25 +95,13 @@
 <ul>
 <li>The parameters to and the result of calls to Matlab functions will remain untyped for the foreseeable future.  As it currently stands, there seems be no way to provide types for Matlab functions without manual labeling as with TypeScript.</li>
 </ul>
-        </section>
-
-        <aside id="sidebar">
-          <a href="https://github.com/BayardRock/Matlab-Type-Provider/zipball/master" class="button">
-            <small>Download</small>
-            .zip file
-          </a>
-          <a href="https://github.com/BayardRock/Matlab-Type-Provider/tarball/master" class="button">
-            <small>Download</small>
-            .tar.gz file
-          </a>
-
-          <p class="repo-owner"><a href="https://github.com/BayardRock/Matlab-Type-Provider"></a> is maintained by <a href="https://github.com/BayardRock">BayardRock</a>.</p>
-
-          <p>This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
-        </aside>
-      </div>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/BayardRock">BayardRock</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
     </div>
-
-  
+    <script src="javascripts/scale.fix.js"></script>
+    
   </body>
 </html>
