@@ -85,10 +85,11 @@ module LazyProviderHelpers =
         pm.AddXmlDocDelayed(fun () -> getXmlText ())
         pm
 
-    let rec generateToolboxes (executor: MatlabCommandExecutor) (toolboxes: MatlabToolboxInfo list) = 
+    let rec generateToolboxes (executor: MatlabCommandExecutor) (thisAssembly: Assembly) (parentNamespace: string) (toolboxes: MatlabToolboxInfo list) : (string * ProvidedTypeDefinition) list = 
         [
             for tb in toolboxes do
-                let tbType = ProvidedTypeDefinition(tb.Name, Some(typeof<obj>))
+                let tbNamespace = parentNamespace + "." + tb.Name
+                let tbType = ProvidedTypeDefinition(thisAssembly, tbNamespace, "M", Some(typeof<obj>))
                 let getTBXML () = executor.GetToolboxHelp tb                
                 do tbType.AddMembersDelayed(fun () ->
                     [
@@ -103,11 +104,11 @@ module LazyProviderHelpers =
 
                         // Generate Toolbox Functions
                         yield! tb.Funcs |> Seq.map (fun func -> generateFunctionHandlesFromDescription executor tb (func.Force()) :> MemberInfo)
-                        // Generate Sub-toolboxes
-                        yield! generateToolboxes executor (tb.Toolboxes)  
                     ])
                 tbType.AddXmlDocDelayed(fun () -> getTBXML ())
-                yield tbType :> MemberInfo
+                yield tbNamespace, tbType
+                // Generate Sub-toolboxes                        
+                yield! generateToolboxes executor thisAssembly tbNamespace (tb.Toolboxes) //|> Seq.cast<MemberInfo>
           ]
 
 [<TypeProvider>]
@@ -132,12 +133,13 @@ type SimpleMatlabProvider (config: TypeProviderConfig) as this =
     //
     // Lazy Toolboxes and Functions 
     //
-    let fty = ProvidedTypeDefinition(thisAssembly, lazyRootNamespace, "Toolboxes", Some(typeof<obj>))
-    do fty.AddMembersDelayed(fun () -> 
-           let toolboxes = MatlabInterface.toolboxeCache.Value in 
-               LazyProviderHelpers.generateToolboxes executor toolboxes)
-    do fty.AddXmlDoc("Matlab toolboxes with function handles")
-    do this.AddNamespace(lazyRootNamespace,  [fty])
+    let toolboxNamespace = "Toolboxes"
+//    let fty = ProvidedTypeDefinition(thisAssembly, lazyRootNamespace, "Toolboxes", Some(typeof<obj>))
+    let toolboxInfos = MatlabInterface.toolboxeCache.Value
+    let toolboxObjects = LazyProviderHelpers.generateToolboxes executor thisAssembly toolboxNamespace toolboxInfos
+    do toolboxObjects |> List.iter (fun (ns, tb) -> this.AddNamespace(ns, [tb])) 
+    //do fty.AddXmlDoc("Matlab toolboxes with function handles")
+    //do this.AddNamespace(lazyRootNamespace,  [fty])
 
 
 [<assembly:TypeProviderAssembly>] 
