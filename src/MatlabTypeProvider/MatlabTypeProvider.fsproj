@@ -17,10 +17,10 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>C:\Users\rminerich\Documents\GitHub\Matlab-Type-Provider\bin\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\MatlabTypeProvider.XML</DocumentationFile>
+    <DocumentationFile>C:\Users\rminerich\Documents\GitHub\Matlab-Type-Provider\bin\MatlabTypeProvider.xml</DocumentationFile>
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft Visual Studio 11.0\Common7\IDE\devenv.exe</StartProgram>
     <StartWorkingDirectory>
@@ -32,10 +32,10 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>C:\Users\rminerich\Documents\GitHub\Matlab-Type-Provider\bin\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\MatlabTypeProvider.XML</DocumentationFile>
+    <DocumentationFile>C:\Users\rminerich\Documents\GitHub\Matlab-Type-Provider\bin\MatlabTypeProvider.xml</DocumentationFile>
     <NoWarn>10001</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
@@ -43,7 +43,7 @@
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')" />
   <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="AssemblyInfo2.fs" />
     <Compile Include="ProvidedTypes.fs" />
     <Compile Include="MatlabDLL.fs" />
     <Compile Include="MatlabManualCOM.fs" />
@@ -60,7 +60,7 @@
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

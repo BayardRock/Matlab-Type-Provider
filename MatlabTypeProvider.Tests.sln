@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{10145D9B-96CA-4060-8A29-C624181DED43}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MatlabTypeProvider.Tests", "tests\MatlabTypeProvider.Tests\MatlabTypeProvider.Tests.fsproj", "{946B3D42-3088-4694-A3C4-D6B796F897A9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{DE2F2675-5F85-47EA-86E4-D026C0CAC1E4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{740EF884-C556-459F-9D50-55C6B5866685}"
+	ProjectSection(SolutionItems) = preProject
+		docs\tools\generate.fsx = docs\tools\generate.fsx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{3967565B-7142-4251-86DB-75347FD87278}"
+	ProjectSection(SolutionItems) = preProject
+		docs\content\index.fsx = docs\content\index.fsx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "files", "files", "{B1AF27BC-70E0-46AE-A0C4-3250B0D9BEEB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{946B3D42-3088-4694-A3C4-D6B796F897A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{946B3D42-3088-4694-A3C4-D6B796F897A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{946B3D42-3088-4694-A3C4-D6B796F897A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{946B3D42-3088-4694-A3C4-D6B796F897A9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{740EF884-C556-459F-9D50-55C6B5866685} = {DE2F2675-5F85-47EA-86E4-D026C0CAC1E4}
+		{3967565B-7142-4251-86DB-75347FD87278} = {DE2F2675-5F85-47EA-86E4-D026C0CAC1E4}
+		{B1AF27BC-70E0-46AE-A0C4-3250B0D9BEEB} = {DE2F2675-5F85-47EA-86E4-D026C0CAC1E4}
+	EndGlobalSection
+EndGlobal
