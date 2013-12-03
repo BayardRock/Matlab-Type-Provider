@@ -12,14 +12,21 @@ open TestHelpers
 
 #nowarn "10001" // Speical warning for Type Provider internals 
 
+
+
 [<Fact>] 
 let ``supported instance types should round trip`` () =
+    // Matlab supported basic types: 
+    // double, single, int8, int16, int32, int64, uint8, uint16, uint32, uint64
+
     let vs : (obj) list =
         [
             // Logical Types
             true; false; [|true; true; true|]; [|false; false; false|]; (Array2D.create 2 2 false); (Array2D.create 2 2 true);
-            // Floating Point Types
+            // Double Types
             0.0; 1.5; [|0.0; 0.0; 0.0|]; [|0.1; 0.2; 0.3|]; (Array2D.create 2 2 0.0); (Array2D.create 2 2 1.5);
+            // Single Types
+            0.0f; 1.5f; [|0.0f; 0.0f; 0.0f|]; [|0.1f; 0.2f; 0.3f|]; (Array2D.create 2 2 0.0f); (Array2D.create 2 2 1.5f);
             // Complex Numer Types (Note: Matlab does not accept 0 values)
             // Note -- Not yet supported: Complex(2.0, 2.0); [|Complex(0.1, 0.2); Complex(3.0,0.4); Complex(5.0,6.0)|]; 
             (Array2D.create 2 2 (Complex(1.0, 2.0))); 

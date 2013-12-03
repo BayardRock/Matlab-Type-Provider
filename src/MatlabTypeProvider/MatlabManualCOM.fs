@@ -24,10 +24,6 @@ module MatlabCOM =
             | None -> let v = Activator.CreateInstance(comType) in MatlabCOMProxy.instance <- Some (v); v
             | Some(v) -> v
 
-        //let __comObject = 
-            //try Marshal.GetActiveObject(progid)
-            //with _ -> Activator.CreateInstance(comType)
-
         /// When "execute" is called the result can actually be the console output, this will remove the default ans variable binding message
         let removeAns (resultStr: string) =
             // Answer string header: [|'\010'; 'a'; 'n'; 's'; ' '; '='; '\010'; '\010';|]
